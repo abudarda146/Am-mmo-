@@ -1,0 +1,7 @@
+{
+  "name": "Mmo",
+  "description": "An immersive storytelling application where an AI, acting as an eloquent Bengali storyteller, narrates long, engaging tales. Users can request stories and continue them part-by-part in an interactive chat.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
