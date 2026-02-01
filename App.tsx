@@ -1,8 +1,9 @@
 
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import type { Chat, GenerateContentResponse } from '@google/genai';
+import { User } from 'firebase/auth';
+
 import Header from './components/Header';
 import MainChatView from './components/MainChatView';
 import SettingsView from './components/SettingsView';
@@ -10,8 +11,11 @@ import ImageView from './components/ImageView';
 import VideoView from './components/VideoView';
 import SlideshowView from './components/SlideshowView';
 import ApiKeySelector from './components/ApiKeySelector';
+import AuthView from './components/AuthView';
+
 import { Message, Role, Source, StoryLength, AudioState } from './types';
 import { initChat, generateStoryAudio, generateImageForStory, generateVideoForStory, generateSlideshowForStory, generateRandomStoryPrompt } from './services/geminiService';
+import { onAuthChange } from './services/firebaseService';
 import { decode, decodeAudioData, audioBufferToWav } from './utils/audioUtils';
 
 const INITIAL_MESSAGE_CONTENT = 'শুভেচ্ছা! আমি আপনার ব্যক্তিগত গল্পকার। ইন্টারনেট থেকে যেকোনো গল্প খুঁজে বের করে আপনাকে শোনাতে পারি। আপনি কোন গল্পটি শুনতে চান?';
@@ -31,6 +35,8 @@ const CONTINUATION_SUGGESTIONS = [
 ];
 
 const App: React.FC = () => {
+    const [user, setUser] = useState<User | null>(null);
+    const [isAuthChecking, setIsAuthChecking] = useState(true);
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState<boolean>(false);
@@ -53,6 +59,14 @@ const App: React.FC = () => {
     const pausedAtRef = useRef<number>(0);
     const animationFrameRef = useRef<number>(0);
 
+    // Auth Change Listener
+    useEffect(() => {
+        const unsubscribe = onAuthChange((currentUser) => {
+            setUser(currentUser);
+            setIsAuthChecking(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const getAudioContext = () => {
         if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
@@ -63,7 +77,7 @@ const App: React.FC = () => {
             gainNodeRef.current = gainNode;
             
             const analyser = context.createAnalyser();
-            analyser.fftSize = 256; // Smaller FFT size for better time resolution for lip-sync
+            analyser.fftSize = 256;
             analyserNodeRef.current = analyser;
         }
         return audioContextRef.current;
@@ -82,7 +96,6 @@ const App: React.FC = () => {
         const newCurrentTime = pausedAtRef.current + elapsedTime;
 
         if (newCurrentTime >= state.duration) {
-            // Stop the loop and reset state
             stopCurrentAudio();
         } else {
             setAudioStates(prev => ({
@@ -103,7 +116,6 @@ const App: React.FC = () => {
             context.resume();
         }
         
-        // Stop any currently playing audio
         if (currentSourceNodeRef.current) {
             currentSourceNodeRef.current.onended = null;
             currentSourceNodeRef.current.stop();
@@ -135,7 +147,7 @@ const App: React.FC = () => {
         
         source.onended = () => {
              if (currentlyPlayingIdRef.current === messageId) {
-                stopCurrentAudio(false); // don't stop source again
+                stopCurrentAudio(false);
              }
         };
 
@@ -170,9 +182,7 @@ const App: React.FC = () => {
             currentSourceNodeRef.current.onended = null;
             try {
                 currentSourceNodeRef.current.stop();
-            } catch (e) {
-                // Ignore if it's already stopped
-            }
+            } catch (e) {}
         }
         
         if (currentlyPlayingIdRef.current) {
@@ -195,6 +205,7 @@ const App: React.FC = () => {
     }, []);
 
     const initializeChatSession = useCallback(() => {
+        if (!user) return;
         try {
             stopCurrentAudio();
             chat.current = initChat(storyLength);
@@ -205,11 +216,13 @@ const App: React.FC = () => {
             console.error("Failed to initialize chat:", e);
             setError("চ্যাট শুরু করতে ব্যর্থ। অনুগ্রহ করে API কী পরীক্ষা করুন।");
         }
-    }, [stopCurrentAudio, storyLength]);
+    }, [stopCurrentAudio, storyLength, user]);
 
     useEffect(() => {
-        initializeChatSession();
-    }, [initializeChatSession]);
+        if (user) {
+            initializeChatSession();
+        }
+    }, [initializeChatSession, user]);
 
     useEffect(() => {
         return () => {
@@ -228,27 +241,21 @@ const App: React.FC = () => {
 
     const handlePlayPause = async (messageId: string, content: string) => {
         const currentState = audioStates[messageId];
-        
-        // If it's playing, pause it
         if (currentState?.isPlaying) {
             pauseAudio();
             return;
         }
 
-        // If another audio is playing, stop it first
         if(currentlyPlayingIdRef.current && currentlyPlayingIdRef.current !== messageId) {
             stopCurrentAudio();
         }
 
         let buffer = currentState?.audioBuffer;
-
-        // If it's paused, resume it
         if (buffer && !currentState.isPlaying) {
             playAudio(messageId, buffer, pausedAtRef.current);
             return;
         }
 
-        // If no buffer (or error), fetch and play
         if (!buffer || currentState?.error) {
             setAudioStates(prev => ({
                 ...prev,
@@ -272,11 +279,7 @@ const App: React.FC = () => {
 
     const handleDownloadAudio = async (messageId: string) => {
         const state = audioStates[messageId];
-        if (!state?.audioBuffer) {
-            console.error("No audio buffer to download for message:", messageId);
-            return;
-        }
-
+        if (!state?.audioBuffer) return;
         try {
             const wavBlob = audioBufferToWav(state.audioBuffer);
             const url = URL.createObjectURL(wavBlob);
@@ -289,7 +292,6 @@ const App: React.FC = () => {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (err) {
-            console.error("Failed to create and download WAV file:", err);
             setError("অডিও ফাইল ডাউনলোড করতে ব্যর্থ।");
         }
     };
@@ -304,14 +306,9 @@ const App: React.FC = () => {
     const handleSeek = (messageId: string, newTime: number) => {
         const state = audioStates[messageId];
         if (!state?.audioBuffer) return;
-        
         const wasPlaying = state.isPlaying;
-        if(wasPlaying) {
-           pauseAudio();
-        }
-        
+        if(wasPlaying) pauseAudio();
         pausedAtRef.current = newTime;
-        
         setAudioStates(prev => ({
             ...prev,
             [messageId]: {
@@ -320,10 +317,7 @@ const App: React.FC = () => {
                 progress: (newTime / state.duration) * 100,
             }
         }));
-
-        if (wasPlaying) {
-           playAudio(messageId, state.audioBuffer, newTime);
-        }
+        if (wasPlaying) playAudio(messageId, state.audioBuffer, newTime);
     };
 
     const handleSendMessage = async (userInput: string) => {
@@ -340,7 +334,6 @@ const App: React.FC = () => {
 
         try {
             const result = await chat.current.sendMessageStream({ message: userInput });
-            
             let currentContent = '';
             const modelMessageId = crypto.randomUUID();
             setMessages(prev => [...prev, { id: modelMessageId, role: Role.MODEL, content: '' }]);
@@ -352,14 +345,11 @@ const App: React.FC = () => {
                 setMessages(prev => {
                     const newMessages = [...prev];
                     const targetMessage = newMessages.find(m => m.id === modelMessageId);
-                    if (targetMessage) {
-                        targetMessage.content = currentContent;
-                    }
+                    if (targetMessage) targetMessage.content = currentContent;
                     return newMessages;
                 });
             }
 
-            // Extract sources from grounding metadata after stream is complete
             const metadata = finalFullResponse?.candidates?.[0]?.groundingMetadata;
             if (metadata?.groundingChunks) {
                 const sources: Source[] = metadata.groundingChunks
@@ -373,18 +363,13 @@ const App: React.FC = () => {
                     setMessages(prev => {
                         const newMessages = [...prev];
                         const targetMessage = newMessages.find(m => m.id === modelMessageId);
-                        if (targetMessage) {
-                            targetMessage.sources = sources;
-                        }
+                        if (targetMessage) targetMessage.sources = sources;
                         return newMessages;
                     });
                 }
             }
-
-            setIsLoading(false); // Re-enable input now that text is done.
-
+            setIsLoading(false);
         } catch (e) {
-            console.error("Error sending message:", e);
             const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
             setError(errorMessage);
             setMessages(prev => [...prev, { id: crypto.randomUUID(), role: Role.MODEL, content: errorMessage }]);
@@ -395,20 +380,12 @@ const App: React.FC = () => {
     const handleRequestImage = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
         if (!message || !message.content) return;
-
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: true } : m));
-        setError(null);
-
         try {
             const imageBase64 = await generateImageForStory(message.content);
             const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
-            setMessages(prev => prev.map(m => 
-                m.id === messageId 
-                ? { ...m, imageUrl, isGeneratingImage: false } 
-                : m
-            ));
+            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, imageUrl, isGeneratingImage: false } : m));
         } catch (imgErr) {
-            console.error("Failed to generate image for story:", imgErr);
             setError("ছবি তৈরি করতে ব্যর্থ। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: false } : m));
         }
@@ -417,19 +394,11 @@ const App: React.FC = () => {
     const proceedWithVideoGeneration = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
         if (!message || !message.content) return;
-
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingVideo: true } : m));
-        setError(null);
-
         try {
             const videoUrl = await generateVideoForStory(message.content);
-            setMessages(prev => prev.map(m =>
-                m.id === messageId
-                ? { ...m, videoUrl, isGeneratingVideo: false }
-                : m
-            ));
+            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, videoUrl, isGeneratingVideo: false } : m));
         } catch (vidErr: any) {
-            console.error("Failed to generate video for story:", vidErr);
             let errorMessage = "ভিডিও তৈরি করতে ব্যর্থ। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।";
             if (vidErr.message.includes("Requested entity was not found.")) {
                  errorMessage = "আপনার API কী অবৈধ বলে মনে হচ্ছে। অনুগ্রহ করে একটি নতুন কী নির্বাচন করুন।";
@@ -449,7 +418,6 @@ const App: React.FC = () => {
             }
             await proceedWithVideoGeneration(messageId);
         } catch (e) {
-            console.error("Error checking for API key:", e);
             setError("API কী পরীক্ষা করতে একটি সমস্যা হয়েছে।");
         }
     };
@@ -457,19 +425,11 @@ const App: React.FC = () => {
     const handleRequestSlideshow = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
         if (!message || !message.content) return;
-
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingSlideshow: true } : m));
-        setError(null);
-
         try {
             const images = await generateSlideshowForStory(message.content);
-            setMessages(prev => prev.map(m => 
-                m.id === messageId 
-                ? { ...m, slideshow: images, isGeneratingSlideshow: false } 
-                : m
-            ));
+            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, slideshow: images, isGeneratingSlideshow: false } : m));
         } catch (err) {
-            console.error("Failed to generate slideshow:", err);
             setError("স্লাইডশো তৈরি করতে ব্যর্থ। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingSlideshow: false } : m));
         }
@@ -488,13 +448,8 @@ const App: React.FC = () => {
         setError(null);
         try {
             const prompt = await generateRandomStoryPrompt();
-            if (prompt) {
-                await handleSendMessage(prompt);
-            } else {
-                throw new Error("Generated prompt was empty.");
-            }
+            if (prompt) await handleSendMessage(prompt);
         } catch (e) {
-            console.error("Failed to generate random story:", e);
             setError("দৈবচয়িত গল্প তৈরি করতে ব্যর্থ। অনুগ্রহ করে আবার চেষ্টা করুন।");
         } finally {
             setIsGeneratingPrompt(false);
@@ -505,75 +460,74 @@ const App: React.FC = () => {
         if (isLoading || isGeneratingPrompt) return [];
         const lastMessage = messages[messages.length - 1];
         if (!lastMessage) return [];
-
-        if (lastMessage.id === 'initial-message') {
-            return STORY_SUGGESTIONS;
-        }
-        
-        if (lastMessage.role === Role.MODEL && messages.length > 1 && !lastMessage.imageUrl && !lastMessage.isGeneratingImage && !lastMessage.videoUrl && !lastMessage.isGeneratingVideo && !lastMessage.slideshow && !lastMessage.isGeneratingSlideshow) {
+        if (lastMessage.id === 'initial-message') return STORY_SUGGESTIONS;
+        if (lastMessage.role === Role.MODEL && messages.length > 1 && !lastMessage.imageUrl && !lastMessage.videoUrl && !lastMessage.slideshow) {
             return CONTINUATION_SUGGESTIONS;
         }
-        
         return [];
     };
     
     const combinedIsLoading = isLoading || isGeneratingPrompt || messages.some(m => m.isGeneratingImage || m.isGeneratingVideo || m.isGeneratingSlideshow);
     
+    if (isAuthChecking) {
+        return (
+            <div className="h-screen w-screen bg-slate-900 flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
     return (
         <HashRouter>
             <div className="h-screen w-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] flex flex-col">
-                <Header />
-                <Routes>
-                    <Route
-                        path="/"
-                        element={
-                            <MainChatView
-                                messages={messages}
-                                isLoading={isLoading}
-                                isGeneratingPrompt={isGeneratingPrompt}
-                                getSuggestions={getSuggestions}
-                                handleSendMessage={handleSendMessage}
-                                audioStates={audioStates}
-                                handlePlayPause={handlePlayPause}
-                                handleDownloadAudio={handleDownloadAudio}
-                                handleRequestImage={handleRequestImage}
-                                handleRequestVideo={handleRequestVideo}
-                                handleRequestSlideshow={handleRequestSlideshow}
-                                volume={volume}
-                                handleVolumeChange={handleVolumeChange}
-                                handleSeek={handleSeek}
-                                analyser={analyserNodeRef.current}
-                                error={error}
-                                initializeChatSession={initializeChatSession}
-                                handleRandomStory={handleRandomStory}
-                            />
-                        }
-                    />
-                    <Route
-                        path="/settings"
-                        element={
-                            <SettingsView
-                                storyLength={storyLength}
-                                onLengthChange={handleLengthChange}
-                                selectedVoice={selectedVoice}
-                                onVoiceChange={handleVoiceChange}
-                                isDisabled={combinedIsLoading}
-                            />
-                        }
-                    />
-                    <Route
-                        path="/image/:messageId"
-                        element={<ImageView messages={messages} />}
-                    />
-                    <Route
-                        path="/video/:messageId"
-                        element={<VideoView messages={messages} />}
-                    />
-                    <Route
-                        path="/slideshow/:messageId"
-                        element={<SlideshowView messages={messages} />}
-                    />
-                </Routes>
+                <Header user={user} />
+                {!user ? (
+                   <AuthView />
+                ) : (
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={
+                                <MainChatView
+                                    messages={messages}
+                                    isLoading={isLoading}
+                                    isGeneratingPrompt={isGeneratingPrompt}
+                                    getSuggestions={getSuggestions}
+                                    handleSendMessage={handleSendMessage}
+                                    audioStates={audioStates}
+                                    handlePlayPause={handlePlayPause}
+                                    handleDownloadAudio={handleDownloadAudio}
+                                    handleRequestImage={handleRequestImage}
+                                    handleRequestVideo={handleRequestVideo}
+                                    handleRequestSlideshow={handleRequestSlideshow}
+                                    volume={volume}
+                                    handleVolumeChange={handleVolumeChange}
+                                    handleSeek={handleSeek}
+                                    analyser={analyserNodeRef.current}
+                                    error={error}
+                                    initializeChatSession={initializeChatSession}
+                                    handleRandomStory={handleRandomStory}
+                                />
+                            }
+                        />
+                        <Route
+                            path="/settings"
+                            element={
+                                <SettingsView
+                                    storyLength={storyLength}
+                                    onLengthChange={handleLengthChange}
+                                    selectedVoice={selectedVoice}
+                                    onVoiceChange={handleVoiceChange}
+                                    isDisabled={combinedIsLoading}
+                                />
+                            }
+                        />
+                        <Route path="/image/:messageId" element={<ImageView messages={messages} />} />
+                        <Route path="/video/:messageId" element={<VideoView messages={messages} />} />
+                        <Route path="/slideshow/:messageId" element={<SlideshowView messages={messages} />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                )}
                 {showApiKeySelector && (
                     <ApiKeySelector
                         onClose={() => setShowApiKeySelector(false)}

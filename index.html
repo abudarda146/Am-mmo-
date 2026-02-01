@@ -21,19 +21,24 @@
       .animate-blink {
         animation: blink 1s step-end infinite;
       }
-      @keyframes fade-in-up {
-        from {
+      
+      @keyframes message-pop {
+        0% {
           opacity: 0;
-          transform: translateY(10px);
+          transform: translateY(20px) scale(0.95);
         }
-        to {
+        70% {
+          transform: translateY(-2px) scale(1.02);
+        }
+        100% {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateY(0) scale(1);
         }
       }
-      .animate-fade-in-up {
-        animation: fade-in-up 0.5s ease-out forwards;
+      .animate-message-pop {
+        animation: message-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
       }
+
       @keyframes fade-in {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -86,7 +91,10 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
     "react-router-dom": "https://aistudiocdn.com/react-router-dom@^6.25.1",
-    "react-router-dom/": "https://aistudiocdn.com/react-router-dom@^6.25.1/"
+    "react-router-dom/": "https://aistudiocdn.com/react-router-dom@^6.25.1/",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/"
   }
 }
 </script>

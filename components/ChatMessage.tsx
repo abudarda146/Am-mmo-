@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Message, Role } from '../types';
@@ -73,7 +72,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const canGenerateMedia = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
 
   return (
-    <div className={`w-full max-w-4xl mx-auto flex items-end gap-3 my-4 ${isModel ? 'flex-row' : 'flex-row-reverse'} animate-fade-in-up`}>
+    <div className={`w-full max-w-4xl mx-auto flex items-end gap-3 my-4 ${isModel ? 'flex-row' : 'flex-row-reverse'} animate-message-pop`}>
       <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-xl shadow-md ${avatarContainerClasses} ${avatarPlayingClasses} transition-all duration-300`}>
         {isModel ? (
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-amber-400">
