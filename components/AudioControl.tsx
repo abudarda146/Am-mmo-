@@ -42,6 +42,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
+    const capsYPositionRef = useRef<number[]>([]); // To store the vertical position of caps
 
     useEffect(() => {
         if (!canvasRef.current || !analyser || !isPlaying) return;
@@ -50,7 +51,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Handle high-DPI displays for sharp rendering
+        // Handle high-DPI displays
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * dpr;
@@ -60,13 +61,16 @@ const AudioControl: React.FC<AudioControlProps> = ({
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         
-        // Configuration for the visualizer
-        const barWidth = 3;
-        const barGap = 1;
-        // We only use the lower frequency part which has more energy
-        const usableBinCount = Math.floor(bufferLength * 0.7); 
-        const totalBars = Math.floor(rect.width / (barWidth + barGap));
-        const step = Math.ceil(usableBinCount / totalBars);
+        // Settings for the RGB Visualizer
+        const barCount = 64; // How many bars to show
+        const barWidth = (rect.width / barCount) - 2; // Subtract spacing
+        const capHeight = 2;
+        const capFallSpeed = 1.5;
+
+        // Initialize caps if array length changed
+        if (capsYPositionRef.current.length !== barCount) {
+            capsYPositionRef.current = new Array(barCount).fill(rect.height);
+        }
 
         const draw = () => {
             animationRef.current = requestAnimationFrame(draw);
@@ -74,47 +78,62 @@ const AudioControl: React.FC<AudioControlProps> = ({
 
             ctx.clearRect(0, 0, rect.width, rect.height);
             
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
+            // Create RGB Rainbow Gradient
+            const gradient = ctx.createLinearGradient(0, 0, rect.width, 0);
+            gradient.addColorStop(0, '#ff0000');    // Red
+            gradient.addColorStop(0.15, '#ff7f00'); // Orange
+            gradient.addColorStop(0.30, '#ffff00'); // Yellow
+            gradient.addColorStop(0.45, '#00ff00'); // Green
+            gradient.addColorStop(0.60, '#00ffff'); // Cyan
+            gradient.addColorStop(0.75, '#0000ff'); // Blue
+            gradient.addColorStop(0.90, '#8b00ff'); // Violet
+            gradient.addColorStop(1, '#ff00ff');    // Magenta
 
-            // Create a premium gradient
-            const gradient = ctx.createLinearGradient(0, centerY, 0, 0);
-            gradient.addColorStop(0, '#d97706'); // Amber-600 (Darker at base)
-            gradient.addColorStop(0.5, '#fbbf24'); // Amber-400 (Mid)
-            gradient.addColorStop(1, '#fffbeb'); // Amber-50 (Tip - brightest)
-            
             ctx.fillStyle = gradient;
             
-            // Add a glow effect
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(251, 191, 36, 0.5)'; // Amber glow
+            // Add Neon Glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
 
-            // Draw symmetric mirrored bars from center outwards
-            // We iterate half the total bars because we draw two bars (left & right) per iteration
-            const centerBars = Math.floor(totalBars / 2);
-            
-            for (let i = 0; i < centerBars; i++) {
-                // Get amplitude mapping
-                const dataIndex = Math.floor(i * step);
-                // Enhance the highs slightly as they are usually quieter
-                let value = dataArray[dataIndex] || 0;
+            // Draw Bars and Caps
+            // We use a step to sample the frequency data evenly
+            const step = Math.floor(bufferLength / barCount);
+
+            for (let i = 0; i < barCount; i++) {
+                // Get frequency value (0-255)
+                const value = dataArray[i * step];
                 
-                // Scale value to fit height nicely (leave some padding)
-                const percent = value / 255;
-                const height = Math.max(2, percent * (rect.height * 0.8));
+                // Calculate bar height relative to canvas height
+                // Multiplier 0.8 keeps it from hitting the very top constantly
+                const height = (value / 255) * rect.height * 0.9;
                 
-                // Draw Right Side
-                const xRight = centerX + (i * (barWidth + barGap));
-                // Rounded tops
+                const x = i * (barWidth + 2); // 2 is the gap
+                const y = rect.height - height;
+
+                // --- Draw the Bar (RGB Gradient) ---
+                // We use rounded top corners for a modern look
                 ctx.beginPath();
-                ctx.roundRect(xRight, centerY - height/2, barWidth, height, 2);
+                ctx.roundRect(x, y, barWidth, height, [4, 4, 0, 0]);
                 ctx.fill();
 
-                // Draw Left Side (Mirror)
-                const xLeft = centerX - ((i + 1) * (barWidth + barGap));
-                ctx.beginPath();
-                ctx.roundRect(xLeft, centerY - height/2, barWidth, height, 2);
-                ctx.fill();
+                // --- Draw the Falling Cap (White) ---
+                // Logic: If current audio is louder, push cap up. If quieter, let cap fall slowly.
+                if (y < capsYPositionRef.current[i]) {
+                    capsYPositionRef.current[i] = y;
+                } else {
+                    capsYPositionRef.current[i] = Math.min(rect.height, capsYPositionRef.current[i] + capFallSpeed);
+                }
+
+                // Only draw cap if it's above the bottom
+                if (capsYPositionRef.current[i] < rect.height) {
+                    ctx.fillStyle = '#ffffff'; // White cap
+                    ctx.shadowColor = '#ffffff'; // White glow for cap
+                    ctx.fillRect(x, capsYPositionRef.current[i] - capHeight - 2, barWidth, capHeight);
+                    
+                    // Reset fill style for next bar loop (back to gradient)
+                    ctx.fillStyle = gradient;
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+                }
             }
         };
 
@@ -155,10 +174,10 @@ const AudioControl: React.FC<AudioControlProps> = ({
             
             {/* Visualizer Background (Absolute) */}
             {isPlaying && analyser && (
-                <div className="absolute inset-0 opacity-100 pointer-events-none z-0">
+                <div className="absolute inset-0 opacity-100 pointer-events-none z-0 bg-black/20">
                      <canvas 
                         ref={canvasRef} 
-                        className="w-full h-full opacity-40 group-hover:opacity-60 transition-opacity duration-500"
+                        className="w-full h-full opacity-80"
                     />
                 </div>
             )}
@@ -170,7 +189,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                          {/* Play/Pause Button */}
                         <button
                             onClick={onPlayPauseClick}
-                            className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-white rounded-full transition-all shadow-lg hover:shadow-amber-500/20 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait disabled:transform-none"
+                            className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white rounded-full transition-all shadow-lg shadow-indigo-500/30 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait disabled:transform-none"
                             disabled={isLoading || isBuffering}
                             title={isPlaying ? 'বিরতি' : 'শুনুন'}
                         >
@@ -214,7 +233,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                          <div className="flex items-center gap-2 group bg-slate-900/60 px-3 py-1.5 rounded-full border border-slate-700/50 backdrop-blur-md hidden sm:flex">
                             <button 
                                 onClick={() => onVolumeChange(volume === 0 ? 1 : 0)}
-                                className="text-slate-400 hover:text-amber-400 transition-colors"
+                                className="text-slate-400 hover:text-purple-400 transition-colors"
                             >
                                 {volume === 0 ? (
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -233,7 +252,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                                 step="0.01"
                                 value={volume}
                                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                                className="w-16 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                                className="w-16 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-purple-400"
                                 aria-label="Volume"
                             />
                         </div>
@@ -243,7 +262,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                                 onClick={onDownloadClick} 
                                 title="অডিও ডাউনলোড করুন" 
                                 disabled={!duration || duration === 0}
-                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-purple-300 rounded-full transition-all border border-slate-600 hover:border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
                             >
                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -266,9 +285,9 @@ const AudioControl: React.FC<AudioControlProps> = ({
                             step="0.1"
                             value={currentTime}
                             onChange={handleSeekChange}
-                            className="audio-progress-slider w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer z-10 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                            className="audio-progress-slider w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer z-10 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500/30"
                             style={{
-                                background: `linear-gradient(to right, #fbbf24 ${progressPercent}%, #334155 ${progressPercent}%)`
+                                background: `linear-gradient(to right, #a855f7 ${progressPercent}%, #334155 ${progressPercent}%)`
                             }}
                             aria-label="Seek"
                         />
