@@ -16,6 +16,7 @@ interface AudioControlProps {
   onSkip: (amount: number) => void;
   analyser?: AnalyserNode | null;
   onDownloadClick?: () => void;
+  onRegenerateClick?: () => void;
 }
 
 const formatTime = (seconds: number) => {
@@ -38,7 +39,8 @@ const AudioControl: React.FC<AudioControlProps> = ({
   onVolumeChange,
   onSkip,
   onDownloadClick,
-  analyser
+  analyser,
+  onRegenerateClick
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
@@ -229,40 +231,25 @@ const AudioControl: React.FC<AudioControlProps> = ({
                     
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-3">
-                        {/* Volume */}
-                         <div className="flex items-center gap-2 group bg-slate-900/60 px-3 py-1.5 rounded-full border border-slate-700/50 backdrop-blur-md hidden sm:flex">
-                            <button 
-                                onClick={() => onVolumeChange(volume === 0 ? 1 : 0)}
-                                className="text-slate-400 hover:text-purple-400 transition-colors"
+                         {/* Change Voice Button (New) */}
+                        {onRegenerateClick && (
+                            <button
+                                onClick={onRegenerateClick}
+                                title="ভয়েস পরিবর্তন করুন"
+                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 backdrop-blur-sm"
                             >
-                                {volume === 0 ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
-                                    </svg>
-                                )}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                                </svg>
                             </button>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.01"
-                                value={volume}
-                                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                                className="w-16 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-purple-400"
-                                aria-label="Volume"
-                            />
-                        </div>
+                        )}
 
                         {onDownloadClick && (
                             <button 
                                 onClick={onDownloadClick} 
                                 title="অডিও ডাউনলোড করুন" 
                                 disabled={!duration || duration === 0}
-                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-purple-300 rounded-full transition-all border border-slate-600 hover:border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-purple-300 rounded-full transition-all border border-slate-600 hover:border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm hidden sm:block"
                             >
                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

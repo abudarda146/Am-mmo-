@@ -21,6 +21,7 @@ interface ChatMessageProps {
   onSeek: (messageId: string, time: number) => void;
   onSuggestionClick: (suggestion: string) => void;
   analyser: AnalyserNode | null;
+  onRegenerateVoice: (messageId: string, content: string) => void;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ 
@@ -37,7 +38,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     onVolumeChange,
     onSeek,
     onSuggestionClick,
-    analyser
+    analyser,
+    onRegenerateVoice
 }) => {
   const isModel = message.role === Role.MODEL;
 
@@ -214,6 +216,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     onVolumeChange={onVolumeChange}
                     onSkip={handleSkip}
                     analyser={audioState?.isPlaying ? analyser : null}
+                    onRegenerateClick={() => onRegenerateVoice(message.id, message.content)}
                 />
             </div>
         )}

@@ -1,5 +1,4 @@
 
-
 import React, { useRef, useLayoutEffect } from 'react';
 import { Message } from '../types';
 import ChatMessage from './ChatMessage';
@@ -21,6 +20,7 @@ interface ChatWindowProps {
   onVolumeChange: (volume: number) => void;
   onSeek: (messageId: string, time: number) => void;
   analyser: AnalyserNode | null;
+  onRegenerateVoice: (messageId: string, content: string) => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ 
@@ -37,7 +37,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     volume,
     onVolumeChange,
     onSeek,
-    analyser
+    analyser,
+    onRegenerateVoice
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +71,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             onSeek={onSeek}
             onSuggestionClick={onSuggestionClick}
             analyser={analyser}
+            onRegenerateVoice={onRegenerateVoice}
           />
         ))}
         {suggestions.length > 0 && !isLoading && <SuggestionChips suggestions={suggestions} onSuggestionClick={onSuggestionClick} isLoading={isLoading} />}

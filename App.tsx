@@ -13,6 +13,7 @@ import SlideshowView from './components/SlideshowView';
 import ApiKeySelector from './components/ApiKeySelector';
 import AuthView from './components/AuthView';
 import Sidebar from './components/Sidebar';
+import VoiceSelectionModal from './components/VoiceSelectionModal';
 
 import { Message, Role, Source, StoryLength, AudioState, ChatSession } from './types';
 import { initChat, generateStoryAudio, generateImageForStory, generateVideoForStory, generateSlideshowForStory, generateRandomStoryPrompt } from './services/geminiService';
@@ -64,6 +65,10 @@ const App: React.FC = () => {
     const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
     const [volume, setVolume] = useState(1);
     const [showApiKeySelector, setShowApiKeySelector] = useState<boolean>(false);
+    
+    // Voice Modal State
+    const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
+    const [pendingAudioMessage, setPendingAudioMessage] = useState<{id: string, content: string} | null>(null);
     
     const chat = useRef<Chat | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -292,42 +297,69 @@ const App: React.FC = () => {
         setSelectedVoice(voice);
     };
 
+    const generateAndPlayAudio = async (messageId: string, content: string, voiceName: string) => {
+         // Reset state for new generation
+         setAudioStates(prev => ({
+            ...prev,
+            [messageId]: { ...prev[messageId], isLoading: true, isBuffering: false, error: false, audioBuffer: null, duration: 0, currentTime: 0, progress: 0 }
+        }));
+
+        try {
+            const base64Audio = await generateStoryAudio(content, voiceName);
+            setAudioStates(prev => ({ ...prev, [messageId]: { ...prev[messageId], isLoading: false, isBuffering: true } }));
+            const audioData = decode(base64Audio);
+            const context = getAudioContext();
+            const buffer = await decodeAudioData(audioData, context, 24000, 1);
+            setAudioStates(prev => ({ ...prev, [messageId]: { ...prev[messageId], audioBuffer: buffer } }));
+            playAudio(messageId, buffer, 0);
+        } catch (err) {
+            console.error("Failed to process audio:", err);
+            setAudioStates(prev => ({ ...prev, [messageId]: { ...prev[messageId], isLoading: false, isBuffering: false, error: true } }));
+            stopCurrentAudio();
+        }
+    };
+
     const handlePlayPause = async (messageId: string, content: string) => {
         const currentState = audioStates[messageId];
+
+        // If playing, pause
         if (currentState?.isPlaying) {
             pauseAudio();
             return;
         }
 
+        // If another audio is playing, stop it
         if(currentlyPlayingIdRef.current && currentlyPlayingIdRef.current !== messageId) {
             stopCurrentAudio();
         }
 
+        // If we have buffer and it's paused, resume
         let buffer = currentState?.audioBuffer;
         if (buffer && !currentState.isPlaying) {
             playAudio(messageId, buffer, pausedAtRef.current);
             return;
         }
 
-        if (!buffer || currentState?.error) {
-            setAudioStates(prev => ({
-                ...prev,
-                [messageId]: { ...prev[messageId], isLoading: true, isBuffering: false, error: false, audioBuffer: null, duration: 0, currentTime: 0, progress: 0 }
-            }));
-            try {
-                const base64Audio = await generateStoryAudio(content, selectedVoice);
-                setAudioStates(prev => ({ ...prev, [messageId]: { ...prev[messageId], isLoading: false, isBuffering: true } }));
-                const audioData = decode(base64Audio);
-                const context = getAudioContext();
-                buffer = await decodeAudioData(audioData, context, 24000, 1);
-                setAudioStates(prev => ({ ...prev, [messageId]: { ...prev[messageId], audioBuffer: buffer } }));
-                playAudio(messageId, buffer, 0);
-            } catch (err) {
-                console.error("Failed to process audio:", err);
-                setAudioStates(prev => ({ ...prev, [messageId]: { ...prev[messageId], isLoading: false, isBuffering: false, error: true } }));
-                stopCurrentAudio();
-            }
+        // If no buffer, or explicit request to generate, we need to ask for voice FIRST
+        // This is where we open the modal
+        setPendingAudioMessage({ id: messageId, content });
+        setShowVoiceModal(true);
+    };
+
+    const handleVoiceConfirm = (voiceName: string) => {
+        setShowVoiceModal(false);
+        if (pendingAudioMessage) {
+            generateAndPlayAudio(pendingAudioMessage.id, pendingAudioMessage.content, voiceName);
+            // Optionally update selectedVoice for global settings sync (optional)
+            setSelectedVoice(voiceName);
         }
+        setPendingAudioMessage(null);
+    };
+    
+    const handleRegenerateVoice = (messageId: string, content: string) => {
+        stopCurrentAudio();
+        setPendingAudioMessage({ id: messageId, content });
+        setShowVoiceModal(true);
     };
 
     const handleDownloadAudio = async (messageId: string) => {
@@ -634,6 +666,7 @@ const App: React.FC = () => {
                                             error={error}
                                             initializeChatSession={startNewChat}
                                             handleRandomStory={handleRandomStory}
+                                            handleRegenerateVoice={handleRegenerateVoice}
                                         />
                                     }
                                 />
@@ -657,6 +690,16 @@ const App: React.FC = () => {
                         )}
                     </div>
                 </div>
+
+                {/* Voice Selection Modal */}
+                <VoiceSelectionModal 
+                    isOpen={showVoiceModal}
+                    onClose={() => {
+                        setShowVoiceModal(false);
+                        setPendingAudioMessage(null);
+                    }}
+                    onConfirm={handleVoiceConfirm}
+                />
 
                 {showApiKeySelector && (
                     <ApiKeySelector
