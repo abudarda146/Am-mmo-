@@ -72,53 +72,97 @@ export const onAuthChange = (callback: (user: User | null) => void) => {
 const SESSIONS_COLLECTION = "sessions";
 const MESSAGES_COLLECTION = "messages";
 
+// Helper function to remove undefined values which Firestore doesn't support
+// This is critical for preventing "Function DocumentReference.set() called with invalid data" errors
+const cleanData = (data: any): any => {
+    if (Array.isArray(data)) {
+        return data.map(cleanData);
+    } else if (data !== null && typeof data === 'object') {
+        return Object.entries(data).reduce((acc, [key, value]) => {
+            if (value !== undefined) {
+                acc[key] = cleanData(value);
+            }
+            return acc;
+        }, {} as any);
+    }
+    return data;
+};
+
 export const saveChatSession = async (userId: string, sessionId: string, title: string) => {
-    const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-    await setDoc(sessionRef, {
-        id: sessionId,
-        userId,
-        title,
-        updatedAt: Date.now()
-    }, { merge: true });
+    try {
+        const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
+        const data = cleanData({
+            id: sessionId,
+            userId,
+            title,
+            updatedAt: Date.now()
+        });
+        await setDoc(sessionRef, data, { merge: true });
+    } catch (e) {
+        console.error("Error saving chat session:", e);
+    }
 };
 
 export const updateChatSessionTime = async (sessionId: string) => {
-    const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-    await updateDoc(sessionRef, {
-        updatedAt: Date.now()
-    });
+    try {
+        const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
+        await updateDoc(sessionRef, {
+            updatedAt: Date.now()
+        });
+    } catch (e) {
+        console.error("Error updating session time:", e);
+    }
 };
 
 export const saveMessage = async (sessionId: string, message: Message) => {
-    const messageRef = doc(db, SESSIONS_COLLECTION, sessionId, MESSAGES_COLLECTION, message.id);
-    await setDoc(messageRef, {
-        ...message,
-        timestamp: message.timestamp || Date.now()
-    });
+    try {
+        const messageRef = doc(db, SESSIONS_COLLECTION, sessionId, MESSAGES_COLLECTION, message.id);
+        const data = cleanData({
+            ...message,
+            timestamp: message.timestamp || Date.now()
+        });
+        await setDoc(messageRef, data);
+    } catch (e) {
+        console.error("Error saving message:", e);
+    }
 };
 
 export const getChatSessions = async (userId: string): Promise<ChatSession[]> => {
-    const q = query(
-        collection(db, SESSIONS_COLLECTION),
-        where("userId", "==", userId),
-        orderBy("updatedAt", "desc")
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as ChatSession);
+    try {
+        const q = query(
+            collection(db, SESSIONS_COLLECTION),
+            where("userId", "==", userId)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const sessions = querySnapshot.docs.map(doc => doc.data() as ChatSession);
+        // Client-side sorting to avoid Firestore index requirements
+        return sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch (error) {
+        console.error("Error fetching sessions:", error);
+        return [];
+    }
 };
 
 export const getChatMessages = async (sessionId: string): Promise<Message[]> => {
-    const q = query(
-        collection(db, SESSIONS_COLLECTION, sessionId, MESSAGES_COLLECTION),
-        orderBy("timestamp", "asc")
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as Message);
+    try {
+        const q = query(
+            collection(db, SESSIONS_COLLECTION, sessionId, MESSAGES_COLLECTION),
+            orderBy("timestamp", "asc")
+        );
+        
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => doc.data() as Message);
+    } catch (error) {
+        console.error("Error fetching messages:", error);
+        return [];
+    }
 };
 
 export const deleteChatSession = async (sessionId: string) => {
-    // Note: In Firestore, deleting a document doesn't delete its subcollections.
-    // In a real app, you'd need to delete all messages first.
-    // For this demo, we'll just delete the session document.
-    await deleteDoc(doc(db, SESSIONS_COLLECTION, sessionId));
+    try {
+        await deleteDoc(doc(db, SESSIONS_COLLECTION, sessionId));
+    } catch (e) {
+        console.error("Error deleting session:", e);
+    }
 };

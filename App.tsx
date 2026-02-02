@@ -43,6 +43,9 @@ const CONTINUATION_SUGGESTIONS = [
     "এরপর কী হলো?",
 ];
 
+// Helper to generate IDs safely
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
+
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthChecking, setIsAuthChecking] = useState(true);
@@ -80,9 +83,12 @@ const App: React.FC = () => {
             setUser(currentUser);
             setIsAuthChecking(false);
             if (currentUser) {
-                // Load user sessions
-                const userSessions = await getChatSessions(currentUser.uid);
-                setSessions(userSessions);
+                try {
+                    const userSessions = await getChatSessions(currentUser.uid);
+                    setSessions(userSessions);
+                } catch (e) {
+                    console.error("Failed to load sessions", e);
+                }
             } else {
                 setSessions([]);
                 setCurrentSessionId(null);
@@ -96,21 +102,26 @@ const App: React.FC = () => {
         const loadSessionMessages = async () => {
             if (currentSessionId && user) {
                 setIsLoading(true);
+                stopCurrentAudio();
                 try {
                     const sessionMessages = await getChatMessages(currentSessionId);
                     if (sessionMessages.length > 0) {
                         setMessages(sessionMessages);
-                        // Initialize Gemini with history
                         chat.current = initChat(storyLength, sessionMessages);
                     } else {
+                        // If no messages found (should not happen for valid session), reset
                         setMessages([INITIAL_MESSAGE]);
                         chat.current = initChat(storyLength, []);
                     }
                 } catch (e) {
-                    setError("পুরনো মেসেজগুলো লোড করা যায়নি।");
+                    setError("চ্যাট হিস্ট্রি লোড করতে সমস্যা হয়েছে।");
+                    setMessages([INITIAL_MESSAGE]);
                 } finally {
                     setIsLoading(false);
                 }
+            } else if (!currentSessionId) {
+                 setMessages([INITIAL_MESSAGE]);
+                 chat.current = null;
             }
         };
         loadSessionMessages();
@@ -260,6 +271,8 @@ const App: React.FC = () => {
         setAudioStates({});
         setError(null);
         chat.current = initChat(storyLength, []);
+        // Close sidebar on mobile when starting new chat
+        if (window.innerWidth < 768) setIsSidebarOpen(false);
     }, [stopCurrentAudio, storyLength, user]);
 
     useEffect(() => {
@@ -360,41 +373,52 @@ const App: React.FC = () => {
 
     const handleSendMessage = async (userInput: string) => {
         if (!user) return;
-        if (!chat.current) {
-             chat.current = initChat(storyLength, messages);
-        }
         
         stopCurrentAudio();
         setIsLoading(true);
         setError(null);
         
         let activeSessionId = currentSessionId;
+        let isNewSession = false;
 
         // If it's a new session, create one
         if (!activeSessionId) {
-            activeSessionId = crypto.randomUUID();
+            isNewSession = true;
+            activeSessionId = generateId();
             setCurrentSessionId(activeSessionId);
             const title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
+            
+            // Save new session
             await saveChatSession(user.uid, activeSessionId, title);
             
             // Refresh sessions list
             const updatedSessions = await getChatSessions(user.uid);
             setSessions(updatedSessions);
             
-            // Initial message doesn't need to be saved again if it's always the same, 
-            // but let's save the model's first reply.
+            // Initialize chat
+            chat.current = initChat(storyLength, []);
         } else {
+            // Update existing session time
             await updateChatSessionTime(activeSessionId);
+            
+             // Ensure chat is initialized if user refreshed or navigated back
+            if (!chat.current) {
+                 chat.current = initChat(storyLength, messages);
+            }
         }
         
-        const userMessage: Message = { id: crypto.randomUUID(), role: Role.USER, content: userInput, timestamp: Date.now() };
+        const userMessage: Message = { id: generateId(), role: Role.USER, content: userInput, timestamp: Date.now() };
         setMessages(prev => [...prev, userMessage]);
+        
+        // Save user message
         await saveMessage(activeSessionId, userMessage);
 
         try {
+            if (!chat.current) chat.current = initChat(storyLength, messages);
+            
             const result = await chat.current.sendMessageStream({ message: userInput });
             let currentContent = '';
-            const modelMessageId = crypto.randomUUID();
+            const modelMessageId = generateId();
             setMessages(prev => [...prev, { id: modelMessageId, role: Role.MODEL, content: '', timestamp: Date.now() }]);
             
             let finalFullResponse: GenerateContentResponse | null = null;
@@ -434,7 +458,13 @@ const App: React.FC = () => {
             // Save model response to Firestore
             await saveMessage(activeSessionId, modelMessage);
             setIsLoading(false);
+            
+            // Re-fetch sessions to update order if needed (since timestamp changed)
+             const updatedSessions = await getChatSessions(user.uid);
+             setSessions(updatedSessions);
+
         } catch (e) {
+            console.error(e);
             const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
             setError(errorMessage);
             setIsLoading(false);

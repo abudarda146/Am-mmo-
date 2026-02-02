@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         fixed md:relative inset-y-0 left-0 z-30
         w-72 bg-slate-900 border-r border-slate-800 
         transition-transform duration-300 ease-in-out
-        flex flex-col
+        flex flex-col h-full
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* New Chat Button */}
@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Sessions List */}
-        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 custom-scrollbar">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2">আগের গল্পগুলো</h3>
             {sessions.length === 0 ? (
                 <div className="p-4 text-center text-slate-600 italic text-sm">
@@ -88,6 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 onDeleteSession(session.id);
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity"
+                            title="মুছুন"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -100,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* User Info (Footer) */}
         <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-            <div className="text-[10px] text-slate-600 text-center">গল্পের আসর v2.0 - Gemini AI দ্বারা চালিত</div>
+            <div className="text-[10px] text-slate-600 text-center">গল্পের আসর v2.1 - Gemini AI দ্বারা চালিত</div>
         </div>
       </div>
     </>
