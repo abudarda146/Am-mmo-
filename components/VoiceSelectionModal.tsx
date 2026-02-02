@@ -15,7 +15,8 @@ const VOICES = [
   { id: 'Puck', label: 'পুরুষ', description: 'গম্ভীর এবং স্পষ্ট', gender: 'Male' },
 ];
 
-const DEMO_TEXT = "নমস্কার, আমি আপনার গল্পকার। আমি আপনার জন্য এই গল্পটি পড়ব।";
+// Neutral and professional greeting
+const DEMO_TEXT = "হ্যালো! আমি আপনার ব্যক্তিগত গল্পকার। আপনার পছন্দের গল্পটি পড়ে শোনানোর জন্য আমি প্রস্তুত।";
 
 const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, onClose, onConfirm }) => {
   const [playingDemo, setPlayingDemo] = useState<string | null>(null);
