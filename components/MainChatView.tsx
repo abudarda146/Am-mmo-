@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ChatWindow from './ChatWindow';
@@ -47,7 +46,6 @@ const MainChatView: React.FC<MainChatViewProps> = (props) => {
     handleSeek,
     analyser,
     error,
-    initializeChatSession,
     handleRandomStory,
   } = props;
 
@@ -57,7 +55,7 @@ const MainChatView: React.FC<MainChatViewProps> = (props) => {
     <div className="flex-1 flex flex-col min-h-0">
       <ChatWindow
         messages={messages}
-        isLoading={isLoading} // Pass only the text streaming isLoading
+        isLoading={isLoading}
         suggestions={getSuggestions()}
         onSuggestionClick={handleSendMessage}
         audioStates={audioStates}
@@ -71,29 +69,21 @@ const MainChatView: React.FC<MainChatViewProps> = (props) => {
         onSeek={handleSeek}
         analyser={analyser}
       />
-      {error && <div className="text-center text-red-400 pb-2 animate-fade-in">{error}</div>}
+      {error && <div className="text-center text-red-400 pb-2 animate-fade-in text-sm px-4">{error}</div>}
       <div className="flex flex-col items-center pb-3 gap-3">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={initializeChatSession}
-            className="px-4 py-2 bg-slate-700 text-amber-300 rounded-md hover:bg-slate-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={combinedIsLoading}
-            title="বর্তমান কথোপকথন মুছে একটি নতুন গল্প শুরু করুন"
-          >
-            নতুন গল্প শুরু করুন
-          </button>
+        <div className="flex items-center gap-2">
           <button
             onClick={handleRandomStory}
-            className="px-4 py-2 bg-slate-700 text-amber-300 rounded-md hover:bg-slate-600 transition-colors text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-slate-800/80 text-amber-400 rounded-xl hover:bg-slate-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 border border-slate-700 active:scale-95 shadow-md"
             disabled={combinedIsLoading}
             title="AI দিয়ে একটি গল্পের বিষয়বস্তু তৈরি করুন"
           >
-            {isGeneratingPrompt ? <LoadingSpinner /> : '🎲'}
-            দৈবচয়িত গল্প
+            {isGeneratingPrompt ? <LoadingSpinner /> : <span className="text-lg leading-none">🎲</span>}
+            <span className="font-bold">দৈবচয়িত গল্প</span>
           </button>
           <Link
             to="/settings"
-            className="px-4 py-2 bg-slate-700 text-amber-300 rounded-md hover:bg-slate-600 transition-colors text-sm flex items-center gap-2"
+            className="px-4 py-2 bg-slate-800/80 text-slate-300 rounded-xl hover:bg-slate-700 transition-all text-sm flex items-center gap-2 border border-slate-700 active:scale-95 shadow-md"
             aria-disabled={combinedIsLoading}
             onClick={(e) => {
               if (combinedIsLoading) e.preventDefault();
@@ -104,10 +94,10 @@ const MainChatView: React.FC<MainChatViewProps> = (props) => {
             }}
             title="সেটিংস"
           >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-1.57 1.996A1.532 1.532 0 013 8.217c-1.56.38-1.56 2.6 0 2.98a1.532 1.532 0 01.948 2.286c-.836 1.372.734 2.942 1.996 1.57A1.532 1.532 0 018.217 17c.38 1.56 2.6 1.56 2.98 0a1.532 1.532 0 012.286-.948c1.372.836 2.942-.734 1.57-1.996A1.532 1.532 0 0117 11.783c1.56-.38 1.56-2.6 0-2.98a1.532 1.532 0 01-.948-2.286c.836-1.372-.734-2.942-1.996-1.57A1.532 1.532 0 0111.783 3c-.38-.01-.543-.02-.793-.01zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
             </svg>
-            সেটিংস
+            <span className="font-bold">সেটিংস</span>
           </Link>
         </div>
       </div>

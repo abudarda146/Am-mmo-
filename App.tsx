@@ -12,14 +12,23 @@ import VideoView from './components/VideoView';
 import SlideshowView from './components/SlideshowView';
 import ApiKeySelector from './components/ApiKeySelector';
 import AuthView from './components/AuthView';
+import Sidebar from './components/Sidebar';
 
-import { Message, Role, Source, StoryLength, AudioState } from './types';
+import { Message, Role, Source, StoryLength, AudioState, ChatSession } from './types';
 import { initChat, generateStoryAudio, generateImageForStory, generateVideoForStory, generateSlideshowForStory, generateRandomStoryPrompt } from './services/geminiService';
-import { onAuthChange } from './services/firebaseService';
+import { 
+    onAuthChange, 
+    getChatSessions, 
+    getChatMessages, 
+    saveChatSession, 
+    saveMessage, 
+    deleteChatSession,
+    updateChatSessionTime 
+} from './services/firebaseService';
 import { decode, decodeAudioData, audioBufferToWav } from './utils/audioUtils';
 
 const INITIAL_MESSAGE_CONTENT = 'শুভেচ্ছা! আমি আপনার ব্যক্তিগত গল্পকার। ইন্টারনেট থেকে যেকোনো গল্প খুঁজে বের করে আপনাকে শোনাতে পারি। আপনি কোন গল্পটি শুনতে চান?';
-const INITIAL_MESSAGE: Message = { id: 'initial-message', role: Role.MODEL, content: INITIAL_MESSAGE_CONTENT };
+const INITIAL_MESSAGE: Message = { id: 'initial-message', role: Role.MODEL, content: INITIAL_MESSAGE_CONTENT, timestamp: Date.now() };
 
 const STORY_SUGGESTIONS = [
     "আলাদিনের আশ্চর্য প্রদীপের গল্প",
@@ -37,6 +46,12 @@ const CONTINUATION_SUGGESTIONS = [
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthChecking, setIsAuthChecking] = useState(true);
+    
+    // Sessions and State
+    const [sessions, setSessions] = useState<ChatSession[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+    
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState<boolean>(false);
@@ -61,12 +76,45 @@ const App: React.FC = () => {
 
     // Auth Change Listener
     useEffect(() => {
-        const unsubscribe = onAuthChange((currentUser) => {
+        const unsubscribe = onAuthChange(async (currentUser) => {
             setUser(currentUser);
             setIsAuthChecking(false);
+            if (currentUser) {
+                // Load user sessions
+                const userSessions = await getChatSessions(currentUser.uid);
+                setSessions(userSessions);
+            } else {
+                setSessions([]);
+                setCurrentSessionId(null);
+            }
         });
         return () => unsubscribe();
     }, []);
+
+    // Load messages when session changes
+    useEffect(() => {
+        const loadSessionMessages = async () => {
+            if (currentSessionId && user) {
+                setIsLoading(true);
+                try {
+                    const sessionMessages = await getChatMessages(currentSessionId);
+                    if (sessionMessages.length > 0) {
+                        setMessages(sessionMessages);
+                        // Initialize Gemini with history
+                        chat.current = initChat(storyLength, sessionMessages);
+                    } else {
+                        setMessages([INITIAL_MESSAGE]);
+                        chat.current = initChat(storyLength, []);
+                    }
+                } catch (e) {
+                    setError("পুরনো মেসেজগুলো লোড করা যায়নি।");
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+        loadSessionMessages();
+    }, [currentSessionId, user, storyLength]);
 
     const getAudioContext = () => {
         if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
@@ -204,25 +252,15 @@ const App: React.FC = () => {
 
     }, []);
 
-    const initializeChatSession = useCallback(() => {
+    const startNewChat = useCallback(() => {
         if (!user) return;
-        try {
-            stopCurrentAudio();
-            chat.current = initChat(storyLength);
-            setMessages([INITIAL_MESSAGE]);
-            setAudioStates({});
-            setError(null);
-        } catch (e) {
-            console.error("Failed to initialize chat:", e);
-            setError("চ্যাট শুরু করতে ব্যর্থ। অনুগ্রহ করে API কী পরীক্ষা করুন।");
-        }
+        stopCurrentAudio();
+        setCurrentSessionId(null);
+        setMessages([INITIAL_MESSAGE]);
+        setAudioStates({});
+        setError(null);
+        chat.current = initChat(storyLength, []);
     }, [stopCurrentAudio, storyLength, user]);
-
-    useEffect(() => {
-        if (user) {
-            initializeChatSession();
-        }
-    }, [initializeChatSession, user]);
 
     useEffect(() => {
         return () => {
@@ -321,22 +359,43 @@ const App: React.FC = () => {
     };
 
     const handleSendMessage = async (userInput: string) => {
+        if (!user) return;
         if (!chat.current) {
-            setError("চ্যাট সেশন শুরু হয়নি।");
-            return;
+             chat.current = initChat(storyLength, messages);
         }
+        
         stopCurrentAudio();
         setIsLoading(true);
         setError(null);
         
-        const userMessage: Message = { id: crypto.randomUUID(), role: Role.USER, content: userInput };
+        let activeSessionId = currentSessionId;
+
+        // If it's a new session, create one
+        if (!activeSessionId) {
+            activeSessionId = crypto.randomUUID();
+            setCurrentSessionId(activeSessionId);
+            const title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
+            await saveChatSession(user.uid, activeSessionId, title);
+            
+            // Refresh sessions list
+            const updatedSessions = await getChatSessions(user.uid);
+            setSessions(updatedSessions);
+            
+            // Initial message doesn't need to be saved again if it's always the same, 
+            // but let's save the model's first reply.
+        } else {
+            await updateChatSessionTime(activeSessionId);
+        }
+        
+        const userMessage: Message = { id: crypto.randomUUID(), role: Role.USER, content: userInput, timestamp: Date.now() };
         setMessages(prev => [...prev, userMessage]);
+        await saveMessage(activeSessionId, userMessage);
 
         try {
             const result = await chat.current.sendMessageStream({ message: userInput });
             let currentContent = '';
             const modelMessageId = crypto.randomUUID();
-            setMessages(prev => [...prev, { id: modelMessageId, role: Role.MODEL, content: '' }]);
+            setMessages(prev => [...prev, { id: modelMessageId, role: Role.MODEL, content: '', timestamp: Date.now() }]);
             
             let finalFullResponse: GenerateContentResponse | null = null;
             for await (const chunk of result) {
@@ -350,6 +409,13 @@ const App: React.FC = () => {
                 });
             }
 
+            const modelMessage: Message = { 
+                id: modelMessageId, 
+                role: Role.MODEL, 
+                content: currentContent, 
+                timestamp: Date.now() 
+            };
+
             const metadata = finalFullResponse?.candidates?.[0]?.groundingMetadata;
             if (metadata?.groundingChunks) {
                 const sources: Source[] = metadata.groundingChunks
@@ -360,50 +426,60 @@ const App: React.FC = () => {
                     .filter((source: Source) => source.uri);
 
                 if (sources.length > 0) {
-                    setMessages(prev => {
-                        const newMessages = [...prev];
-                        const targetMessage = newMessages.find(m => m.id === modelMessageId);
-                        if (targetMessage) targetMessage.sources = sources;
-                        return newMessages;
-                    });
+                    modelMessage.sources = sources;
+                    setMessages(prev => prev.map(m => m.id === modelMessageId ? modelMessage : m));
                 }
             }
+            
+            // Save model response to Firestore
+            await saveMessage(activeSessionId, modelMessage);
             setIsLoading(false);
         } catch (e) {
             const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
             setError(errorMessage);
-            setMessages(prev => [...prev, { id: crypto.randomUUID(), role: Role.MODEL, content: errorMessage }]);
             setIsLoading(false);
+        }
+    };
+
+    const handleDeleteSession = async (sessionId: string) => {
+        if (!confirm("আপনি কি এই চ্যাট হিস্ট্রি মুছে ফেলতে চান?")) return;
+        try {
+            await deleteChatSession(sessionId);
+            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            if (currentSessionId === sessionId) {
+                startNewChat();
+            }
+        } catch (e) {
+            setError("চ্যাট মুছতে ব্যর্থ হয়েছে।");
         }
     };
 
     const handleRequestImage = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
-        if (!message || !message.content) return;
+        if (!message || !message.content || !currentSessionId) return;
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: true } : m));
         try {
             const imageBase64 = await generateImageForStory(message.content);
             const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, imageUrl, isGeneratingImage: false } : m));
+            // Update message in Firestore
+            await saveMessage(currentSessionId, { ...message, imageUrl });
         } catch (imgErr) {
-            setError("ছবি তৈরি করতে ব্যর্থ। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।");
+            setError("ছবি তৈরি করতে ব্যর্থ।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: false } : m));
         }
     };
     
     const proceedWithVideoGeneration = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
-        if (!message || !message.content) return;
+        if (!message || !message.content || !currentSessionId) return;
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingVideo: true } : m));
         try {
             const videoUrl = await generateVideoForStory(message.content);
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, videoUrl, isGeneratingVideo: false } : m));
+            await saveMessage(currentSessionId, { ...message, videoUrl });
         } catch (vidErr: any) {
-            let errorMessage = "ভিডিও তৈরি করতে ব্যর্থ। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।";
-            if (vidErr.message.includes("Requested entity was not found.")) {
-                 errorMessage = "আপনার API কী অবৈধ বলে মনে হচ্ছে। অনুগ্রহ করে একটি নতুন কী নির্বাচন করুন।";
-            }
-            setError(errorMessage);
+            setError("ভিডিও তৈরি করতে ব্যর্থ।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingVideo: false } : m));
         }
     };
@@ -424,13 +500,14 @@ const App: React.FC = () => {
 
     const handleRequestSlideshow = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
-        if (!message || !message.content) return;
+        if (!message || !message.content || !currentSessionId) return;
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingSlideshow: true } : m));
         try {
             const images = await generateSlideshowForStory(message.content);
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, slideshow: images, isGeneratingSlideshow: false } : m));
+            await saveMessage(currentSessionId, { ...message, slideshow: images });
         } catch (err) {
-            setError("স্লাইডশো তৈরি করতে ব্যর্থ। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।");
+            setError("স্লাইডশো তৈরি করতে ব্যর্থ।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingSlideshow: false } : m));
         }
     };
@@ -450,7 +527,7 @@ const App: React.FC = () => {
             const prompt = await generateRandomStoryPrompt();
             if (prompt) await handleSendMessage(prompt);
         } catch (e) {
-            setError("দৈবচয়িত গল্প তৈরি করতে ব্যর্থ। অনুগ্রহ করে আবার চেষ্টা করুন।");
+            setError("দৈবচয়িত গল্প তৈরি করতে ব্যর্থ।");
         } finally {
             setIsGeneratingPrompt(false);
         }
@@ -479,55 +556,76 @@ const App: React.FC = () => {
 
     return (
         <HashRouter>
-            <div className="h-screen w-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] flex flex-col">
-                <Header user={user} />
-                {!user ? (
-                   <AuthView />
-                ) : (
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <MainChatView
-                                    messages={messages}
-                                    isLoading={isLoading}
-                                    isGeneratingPrompt={isGeneratingPrompt}
-                                    getSuggestions={getSuggestions}
-                                    handleSendMessage={handleSendMessage}
-                                    audioStates={audioStates}
-                                    handlePlayPause={handlePlayPause}
-                                    handleDownloadAudio={handleDownloadAudio}
-                                    handleRequestImage={handleRequestImage}
-                                    handleRequestVideo={handleRequestVideo}
-                                    handleRequestSlideshow={handleRequestSlideshow}
-                                    volume={volume}
-                                    handleVolumeChange={handleVolumeChange}
-                                    handleSeek={handleSeek}
-                                    analyser={analyserNodeRef.current}
-                                    error={error}
-                                    initializeChatSession={initializeChatSession}
-                                    handleRandomStory={handleRandomStory}
-                                />
-                            }
+            <div className="h-screen w-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] flex flex-col overflow-hidden">
+                <Header 
+                    user={user} 
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+                />
+                
+                <div className="flex-1 flex overflow-hidden">
+                    {user && (
+                        <Sidebar 
+                            sessions={sessions}
+                            currentSessionId={currentSessionId}
+                            onSelectSession={setCurrentSessionId}
+                            onNewChat={startNewChat}
+                            onDeleteSession={handleDeleteSession}
+                            isOpen={isSidebarOpen}
+                            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
                         />
-                        <Route
-                            path="/settings"
-                            element={
-                                <SettingsView
-                                    storyLength={storyLength}
-                                    onLengthChange={handleLengthChange}
-                                    selectedVoice={selectedVoice}
-                                    onVoiceChange={handleVoiceChange}
-                                    isDisabled={combinedIsLoading}
+                    )}
+
+                    <div className="flex-1 flex flex-col min-w-0 bg-slate-900/40 relative">
+                        {!user ? (
+                        <AuthView />
+                        ) : (
+                            <Routes>
+                                <Route
+                                    path="/"
+                                    element={
+                                        <MainChatView
+                                            messages={messages}
+                                            isLoading={isLoading}
+                                            isGeneratingPrompt={isGeneratingPrompt}
+                                            getSuggestions={getSuggestions}
+                                            handleSendMessage={handleSendMessage}
+                                            audioStates={audioStates}
+                                            handlePlayPause={handlePlayPause}
+                                            handleDownloadAudio={handleDownloadAudio}
+                                            handleRequestImage={handleRequestImage}
+                                            handleRequestVideo={handleRequestVideo}
+                                            handleRequestSlideshow={handleRequestSlideshow}
+                                            volume={volume}
+                                            handleVolumeChange={handleVolumeChange}
+                                            handleSeek={handleSeek}
+                                            analyser={analyserNodeRef.current}
+                                            error={error}
+                                            initializeChatSession={startNewChat}
+                                            handleRandomStory={handleRandomStory}
+                                        />
+                                    }
                                 />
-                            }
-                        />
-                        <Route path="/image/:messageId" element={<ImageView messages={messages} />} />
-                        <Route path="/video/:messageId" element={<VideoView messages={messages} />} />
-                        <Route path="/slideshow/:messageId" element={<SlideshowView messages={messages} />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                )}
+                                <Route
+                                    path="/settings"
+                                    element={
+                                        <SettingsView
+                                            storyLength={storyLength}
+                                            onLengthChange={handleLengthChange}
+                                            selectedVoice={selectedVoice}
+                                            onVoiceChange={handleVoiceChange}
+                                            isDisabled={combinedIsLoading}
+                                        />
+                                    }
+                                />
+                                <Route path="/image/:messageId" element={<ImageView messages={messages} />} />
+                                <Route path="/video/:messageId" element={<VideoView messages={messages} />} />
+                                <Route path="/slideshow/:messageId" element={<SlideshowView messages={messages} />} />
+                                <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                        )}
+                    </div>
+                </div>
+
                 {showApiKeySelector && (
                     <ApiKeySelector
                         onClose={() => setShowApiKeySelector(false)}

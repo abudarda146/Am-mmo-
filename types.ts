@@ -1,5 +1,4 @@
 
-
 export enum Role {
   USER = 'user',
   MODEL = 'model',
@@ -21,6 +20,13 @@ export interface Message {
   slideshow?: string[];
   isGeneratingSlideshow?: boolean;
   sources?: Source[];
+  timestamp?: number;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  updatedAt: number;
 }
 
 export type StoryLength = 'short' | 'medium' | 'long';
@@ -31,7 +37,6 @@ export interface AudioState {
   isPlaying: boolean;
   audioBuffer: AudioBuffer | null;
   error: boolean;
-
   progress: number;
   currentTime: number;
   duration: number;
