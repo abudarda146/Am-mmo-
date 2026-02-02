@@ -136,7 +136,9 @@ const App: React.FC = () => {
             gainNodeRef.current = gainNode;
             
             const analyser = context.createAnalyser();
-            analyser.fftSize = 256;
+            // Increased FFT size for better visualization resolution
+            analyser.fftSize = 1024;
+            analyser.smoothingTimeConstant = 0.85; // Smoother transitions
             analyserNodeRef.current = analyser;
         }
         return audioContextRef.current;

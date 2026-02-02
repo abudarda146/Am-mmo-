@@ -50,30 +50,71 @@ const AudioControl: React.FC<AudioControlProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Handle high-DPI displays for sharp rendering
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        
+        // Configuration for the visualizer
+        const barWidth = 3;
+        const barGap = 1;
+        // We only use the lower frequency part which has more energy
+        const usableBinCount = Math.floor(bufferLength * 0.7); 
+        const totalBars = Math.floor(rect.width / (barWidth + barGap));
+        const step = Math.ceil(usableBinCount / totalBars);
 
         const draw = () => {
             animationRef.current = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
 
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
+            // Create a premium gradient
+            const gradient = ctx.createLinearGradient(0, centerY, 0, 0);
+            gradient.addColorStop(0, '#d97706'); // Amber-600 (Darker at base)
+            gradient.addColorStop(0.5, '#fbbf24'); // Amber-400 (Mid)
+            gradient.addColorStop(1, '#fffbeb'); // Amber-50 (Tip - brightest)
+            
+            ctx.fillStyle = gradient;
+            
+            // Add a glow effect
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(251, 191, 36, 0.5)'; // Amber glow
 
-            for (let i = 0; i < bufferLength; i++) {
-                barHeight = (dataArray[i] / 255) * canvas.height;
+            // Draw symmetric mirrored bars from center outwards
+            // We iterate half the total bars because we draw two bars (left & right) per iteration
+            const centerBars = Math.floor(totalBars / 2);
+            
+            for (let i = 0; i < centerBars; i++) {
+                // Get amplitude mapping
+                const dataIndex = Math.floor(i * step);
+                // Enhance the highs slightly as they are usually quieter
+                let value = dataArray[dataIndex] || 0;
+                
+                // Scale value to fit height nicely (leave some padding)
+                const percent = value / 255;
+                const height = Math.max(2, percent * (rect.height * 0.8));
+                
+                // Draw Right Side
+                const xRight = centerX + (i * (barWidth + barGap));
+                // Rounded tops
+                ctx.beginPath();
+                ctx.roundRect(xRight, centerY - height/2, barWidth, height, 2);
+                ctx.fill();
 
-                const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
-                gradient.addColorStop(0, '#fbbf24'); // Amber-400
-                gradient.addColorStop(1, '#d97706'); // Amber-600
-
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-
-                x += barWidth + 1;
+                // Draw Left Side (Mirror)
+                const xLeft = centerX - ((i + 1) * (barWidth + barGap));
+                ctx.beginPath();
+                ctx.roundRect(xLeft, centerY - height/2, barWidth, height, 2);
+                ctx.fill();
             }
         };
 
@@ -110,16 +151,14 @@ const AudioControl: React.FC<AudioControlProps> = ({
     const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
     return (
-        <div className="flex flex-col w-full gap-3 bg-slate-800/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg animate-fade-in mt-2 overflow-hidden relative">
+        <div className="flex flex-col w-full gap-3 bg-slate-800/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg animate-fade-in mt-2 overflow-hidden relative group">
             
             {/* Visualizer Background (Absolute) */}
             {isPlaying && analyser && (
-                <div className="absolute inset-0 opacity-20 pointer-events-none z-0">
+                <div className="absolute inset-0 opacity-100 pointer-events-none z-0">
                      <canvas 
                         ref={canvasRef} 
-                        width={300} 
-                        height={100} 
-                        className="w-full h-full"
+                        className="w-full h-full opacity-40 group-hover:opacity-60 transition-opacity duration-500"
                     />
                 </div>
             )}
@@ -154,7 +193,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                         </button>
 
                         {/* Skip Controls */}
-                        <div className="flex items-center bg-slate-900/60 rounded-full p-1 border border-slate-700/50">
+                        <div className="flex items-center bg-slate-900/60 rounded-full p-1 border border-slate-700/50 backdrop-blur-md">
                              <button onClick={() => onSkip(-10)} title="১০ সেকেন্ড পেছনে" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/>
@@ -172,7 +211,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-3">
                         {/* Volume */}
-                         <div className="flex items-center gap-2 group bg-slate-900/60 px-3 py-1.5 rounded-full border border-slate-700/50 hidden sm:flex">
+                         <div className="flex items-center gap-2 group bg-slate-900/60 px-3 py-1.5 rounded-full border border-slate-700/50 backdrop-blur-md hidden sm:flex">
                             <button 
                                 onClick={() => onVolumeChange(volume === 0 ? 1 : 0)}
                                 className="text-slate-400 hover:text-amber-400 transition-colors"
@@ -204,7 +243,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                                 onClick={onDownloadClick} 
                                 title="অডিও ডাউনলোড করুন" 
                                 disabled={!duration || duration === 0}
-                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
                             >
                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -219,7 +258,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                 {/* Bottom Row: Progress Bar */}
                 <div className="flex items-center gap-3 mt-1 px-1">
                      <span className="text-xs text-slate-400 font-mono font-medium w-10 text-right">{formatTime(currentTime)}</span>
-                     <div className="relative flex-1 h-5 flex items-center group">
+                     <div className="relative flex-1 h-5 flex items-center group/slider">
                         <input
                             type="range"
                             min="0"
@@ -242,4 +281,3 @@ const AudioControl: React.FC<AudioControlProps> = ({
 };
 
 export default AudioControl;
-    
