@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Message, Role } from '../types';
 import AudioControl from './AudioControl';
@@ -40,6 +40,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     analyser,
     onRegenerateVoice
 }) => {
+  const [isCopied, setIsCopied] = useState(false);
   const isModel = message.role === Role.MODEL;
 
   const bubbleClasses = isModel
@@ -69,6 +70,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     onSeek(message.id, newTime);
   }
   
+  const handleCopyText = async () => {
+    if (!message.content) return;
+    try {
+        await navigator.clipboard.writeText(message.content);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+        console.error('Failed to copy text', err);
+    }
+  };
+
   const shouldShowActionButtons = isModel && message.content && !isStreaming && message.id !== 'initial-message' && isLastMessage && !message.imageUrl && !message.isGeneratingImage;
   const canGenerateMedia = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
 
@@ -82,7 +94,34 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           </svg>
         ) : '👤'}
       </div>
-      <div className={`p-4 md:p-5 shadow-md max-w-[80%] ${bubbleClasses} transition-all`}>
+      <div className={`p-4 md:p-5 shadow-md max-w-[80%] ${bubbleClasses} transition-all relative group/bubble`}>
+        
+        {/* Copy Button */}
+        {message.content && !isStreaming && (
+            <button
+                onClick={handleCopyText}
+                className={`absolute top-2 right-2 p-1.5 rounded-md transition-all duration-200 z-10 
+                    ${isModel 
+                        ? 'text-slate-500 hover:text-white hover:bg-slate-700/80 bg-slate-800/50' 
+                        : 'text-amber-200 hover:text-white hover:bg-amber-700/50'
+                    }
+                    ${isCopied ? 'opacity-100 text-green-400' : 'opacity-40 hover:opacity-100'}
+                `}
+                title="টেক্সট কপি করুন"
+            >
+                {isCopied ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                    </svg>
+                )}
+            </button>
+        )}
+
         {(message.imageUrl || message.isGeneratingImage) && (
             <div className="mb-2 rounded-lg overflow-hidden border border-slate-700">
                 {message.isGeneratingImage ? (
@@ -109,7 +148,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               <LoadingSpinner />
             </div>
         ) : message.content ? (
-          <p className="text-lg leading-relaxed whitespace-pre-wrap">
+          <p className="text-lg leading-relaxed whitespace-pre-wrap pr-6">
             {message.content}
             {isStreaming && <span className="inline-block align-bottom w-1 h-5 bg-amber-400 ml-1 animate-blink"></span>}
           </p>
