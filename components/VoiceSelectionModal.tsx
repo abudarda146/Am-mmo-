@@ -10,9 +10,11 @@ interface VoiceSelectionModalProps {
 }
 
 const VOICES = [
-  { id: 'Zephyr', label: 'তরুণী', description: 'বন্ধুত্বপূর্ণ এবং প্রাণবন্ত', gender: 'Female' },
-  { id: 'Kore', label: 'নারী', description: 'শান্ত এবং গল্প বলার জন্য উপযুক্ত', gender: 'Female' },
-  { id: 'Puck', label: 'পুরুষ', description: 'গম্ভীর এবং স্পষ্ট', gender: 'Male' },
+  { id: 'Kore', label: 'নারী (গল্পকার)', description: 'শান্ত, পেশাদার এবং গভীর', gender: 'Female' },
+  { id: 'Charon', label: 'পুরুষ (গভীর)', description: 'রহস্যময়, গম্ভীর এবং চলচ্চিত্রধর্মী', gender: 'Male' },
+  { id: 'Fenrir', label: 'পুরুষ (জোরালো)', description: 'শক্তিশালী, নাটকীয় এবং স্পষ্ট', gender: 'Male' },
+  { id: 'Zephyr', label: 'নারী (প্রাণবন্ত)', description: 'বন্ধুত্বপূর্ণ, মিষ্টি এবং সাবলীল', gender: 'Female' },
+  { id: 'Puck', label: 'পুরুষ (স্বাভাবিক)', description: 'সাবলীল এবং কথোপকথনধর্মী', gender: 'Male' },
 ];
 
 // Neutral and professional greeting
@@ -75,7 +77,7 @@ const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, onClo
         </div>
 
         {/* Voice List */}
-        <div className="p-6 space-y-4 overflow-y-auto">
+        <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
             {VOICES.map((voice) => (
                 <div 
                     key={voice.id}
@@ -113,7 +115,7 @@ const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, onClo
                             }
                         }}
                         className={`
-                            p-2 rounded-full transition-all
+                            p-2 rounded-full transition-all z-10
                             ${playingDemo === voice.id 
                                 ? 'bg-amber-500 text-white animate-pulse' 
                                 : 'bg-slate-600 text-slate-300 hover:bg-slate-500 hover:text-white'}

@@ -50,10 +50,9 @@ const AudioControl: React.FC<AudioControlProps> = ({
         if (!canvasRef.current || !analyser || !isPlaying) return;
 
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for no transparency if possible, but we need clearRect
+        const ctx = canvas.getContext('2d', { alpha: false });
         if (!ctx) return;
 
-        // Handle high-DPI displays
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * dpr;
@@ -63,12 +62,10 @@ const AudioControl: React.FC<AudioControlProps> = ({
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         
-        // OPTIMIZED SETTINGS
-        // Reduced bar count for better performance on mobile
         const barCount = 40; 
         const barWidth = (rect.width / barCount) - 2; 
         const capHeight = 2;
-        const capFallSpeed = 2; // Faster fall for snappier feel
+        const capFallSpeed = 2; 
 
         if (capsYPositionRef.current.length !== barCount) {
             capsYPositionRef.current = new Array(barCount).fill(rect.height);
@@ -78,36 +75,25 @@ const AudioControl: React.FC<AudioControlProps> = ({
             animationRef.current = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
 
-            // Clear canvas efficiently
             ctx.clearRect(0, 0, rect.width, rect.height);
 
-            // Create Rainbow Gradient
-            // We do this every frame to allow for dynamic resizing if needed, 
-            // but it's cheap enough without shadows.
+            // Updated Gradient: Amber to Cyan to match theme
             const gradient = ctx.createLinearGradient(0, 0, rect.width, 0);
-            gradient.addColorStop(0, '#ef4444');    // Red
-            gradient.addColorStop(0.16, '#f97316'); // Orange
-            gradient.addColorStop(0.33, '#eab308'); // Yellow
-            gradient.addColorStop(0.5, '#22c55e');  // Green
-            gradient.addColorStop(0.66, '#06b6d4'); // Cyan
-            gradient.addColorStop(0.83, '#3b82f6'); // Blue
-            gradient.addColorStop(1, '#a855f7');    // Purple
+            gradient.addColorStop(0, '#fbbf24');    // Amber 400
+            gradient.addColorStop(0.5, '#f59e0b');  // Amber 500
+            gradient.addColorStop(1, '#06b6d4');    // Cyan 500
 
             ctx.fillStyle = gradient;
-
-            // NO SHADOWS (ctx.shadowBlur) - This fixes the lag!
 
             const step = Math.floor(bufferLength / barCount);
 
             for (let i = 0; i < barCount; i++) {
                 const value = dataArray[i * step];
-                // Slightly taller bars for better visibility
                 const height = (value / 255) * rect.height;
                 
                 const x = i * (barWidth + 2);
                 const y = rect.height - height;
 
-                // Draw Bar (Using fillRect is faster than roundRect)
                 ctx.fillStyle = gradient;
                 ctx.fillRect(x, y, barWidth, height);
 
@@ -160,12 +146,12 @@ const AudioControl: React.FC<AudioControlProps> = ({
     return (
         <div className="flex flex-col w-full gap-3 bg-slate-800/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg animate-fade-in mt-2 overflow-hidden relative group">
             
-            {/* CSS-based Glow Effect (Performance Optimized) */}
+            {/* Ambient Glow */}
             {isPlaying && (
-                <div className="absolute inset-x-0 bottom-0 h-full w-full bg-gradient-to-t from-purple-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 h-full w-full bg-gradient-to-t from-amber-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
             )}
             
-            {/* Visualizer Background (Absolute) */}
+            {/* Visualizer Background */}
             {isPlaying && analyser && (
                 <div className="absolute inset-0 opacity-100 pointer-events-none z-0">
                      <canvas 
@@ -176,13 +162,13 @@ const AudioControl: React.FC<AudioControlProps> = ({
             )}
 
             <div className="relative z-10 flex flex-col gap-3">
-                {/* Top Row: Main Controls & Volume/Download */}
+                {/* Top Row Controls */}
                 <div className="flex items-center justify-between w-full gap-4">
                     <div className="flex items-center gap-4">
                          {/* Play/Pause Button */}
                         <button
                             onClick={onPlayPauseClick}
-                            className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white rounded-full transition-all shadow-lg shadow-indigo-500/30 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait disabled:transform-none"
+                            className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-full transition-all shadow-lg shadow-amber-500/20 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait disabled:transform-none"
                             disabled={isLoading || isBuffering}
                             title={isPlaying ? 'বিরতি' : 'শুনুন'}
                         >
@@ -221,7 +207,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                     </div>
                     
                     {/* Right Side Actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                          {/* Change Voice Button */}
                         {onRegenerateClick && (
                             <button
@@ -229,7 +215,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                                 title="ভয়েস পরিবর্তন করুন"
                                 className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 backdrop-blur-sm"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" viewBox="0 0 20 20" fill="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
                                 </svg>
                             </button>
@@ -240,7 +226,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                                 onClick={onDownloadClick} 
                                 title="অডিও ডাউনলোড করুন" 
                                 disabled={!duration || duration === 0}
-                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-purple-300 rounded-full transition-all border border-slate-600 hover:border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm hidden sm:block"
+                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm hidden sm:block"
                             >
                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -263,9 +249,9 @@ const AudioControl: React.FC<AudioControlProps> = ({
                             step="0.1"
                             value={currentTime}
                             onChange={handleSeekChange}
-                            className="audio-progress-slider w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer z-10 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                            className="audio-progress-slider w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer z-10 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                             style={{
-                                background: `linear-gradient(to right, #a855f7 ${progressPercent}%, #334155 ${progressPercent}%)`
+                                background: `linear-gradient(to right, #f59e0b ${progressPercent}%, #334155 ${progressPercent}%)`
                             }}
                             aria-label="Seek"
                         />

@@ -341,7 +341,8 @@ const App: React.FC = () => {
         }
 
         // If no buffer, or explicit request to generate, we need to ask for voice FIRST
-        // This is where we open the modal
+        // This is where we open the modal. Stop current audio first to avoid overlap.
+        stopCurrentAudio();
         setPendingAudioMessage({ id: messageId, content });
         setShowVoiceModal(true);
     };
