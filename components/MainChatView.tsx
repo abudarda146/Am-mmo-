@@ -16,6 +16,7 @@ interface MainChatViewProps {
   handlePlayPause: (messageId: string, content: string) => void;
   handleDownloadAudio: (messageId: string) => void;
   handleRequestImage: (messageId: string) => void;
+  // Removed unused video/slideshow handlers
   handleRequestVideo: (messageId: string) => void;
   handleRequestSlideshow: (messageId: string) => void;
   volume: number;
@@ -50,7 +51,7 @@ const MainChatView: React.FC<MainChatViewProps> = (props) => {
     handleRegenerateVoice
   } = props;
 
-  const combinedIsLoading = isLoading || isGeneratingPrompt || messages.some(m => m.isGeneratingImage || m.isGeneratingVideo || m.isGeneratingSlideshow);
+  const combinedIsLoading = isLoading || isGeneratingPrompt || messages.some(m => m.isGeneratingImage);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

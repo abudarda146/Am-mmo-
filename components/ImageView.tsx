@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Message } from '../types';
@@ -26,18 +25,35 @@ const ImageView: React.FC<ImageViewProps> = ({ messages }) => {
     );
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!message?.imageUrl) return;
-    const link = document.createElement('a');
-    link.href = message.imageUrl;
     
-    // Create a more descriptive and safe filename from the story content
-    const storyExcerpt = message.content ? message.content.substring(0, 30).trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').toLowerCase() : 'story';
-    link.download = `gollper-asor_${storyExcerpt}_${message.id.substring(0, 6)}.jpeg`;
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `gollper-asor_${message.id.substring(0, 6)}.jpeg`;
+
+    try {
+        // Try to fetch as blob first to force download behavior
+        const response = await fetch(message.imageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (e) {
+        // Fallback for CORS issues: Open in new tab/simple download
+        console.warn("Fetch failed (likely CORS), falling back to simple link");
+        const link = document.createElement('a');
+        link.href = message.imageUrl;
+        link.target = "_blank"; // Open in new tab if download is blocked
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
   };
 
   return (
@@ -69,8 +85,11 @@ const ImageView: React.FC<ImageViewProps> = ({ messages }) => {
         <div className="w-full h-full max-w-7xl max-h-[80vh] flex items-center justify-center">
             <img 
                 src={message.imageUrl} 
-                alt="Generated story illustration" 
+                alt="Story illustration from web" 
                 className="w-full h-full object-contain rounded-lg shadow-2xl"
+                onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x450/334155/fbbf24?text=ছবি+লোড+করা+যাচ্ছে+না';
+                }}
             />
         </div>
         {message.content && (

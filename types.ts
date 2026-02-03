@@ -14,11 +14,7 @@ export interface Message {
   role: Role;
   content: string;
   imageUrl?: string;
-  isGeneratingImage?: boolean;
-  videoUrl?: string;
-  isGeneratingVideo?: boolean;
-  slideshow?: string[];
-  isGeneratingSlideshow?: boolean;
+  isGeneratingImage?: boolean; // Now implies "Searching Image"
   sources?: Source[];
   timestamp?: number;
 }

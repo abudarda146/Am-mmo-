@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Chat, Modality, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Chat, Modality } from "@google/genai";
 import { Message, Role } from "../types";
 
 const getSystemInstruction = (length: 'short' | 'medium' | 'long'): string => {
@@ -109,94 +109,46 @@ export const generateStoryAudio = async (text: string, voiceName: string = 'Kore
   return base64Audio;
 };
 
+/**
+ * Searches for an image URL relevant to the story using Google Search grounding.
+ * This replaces the Imagen generation to support Free Tier usage.
+ */
 export const generateImageForStory = async (storyText: string): Promise<string> => {
     const genAI = createAiInstance();
-    const imagePromptInstruction = `Analyze the mood and genre of the following Bengali story segment. Create a concise, visually descriptive prompt in English for an image generation model. Append 3-4 specific artistic style keywords. Output only the English prompt. Story: ${storyText}`;
     
-    // Using gemini-3-flash-preview for faster and better instruction following
-    const promptResponse = await genAI.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: imagePromptInstruction,
-    });
+    const searchPrompt = `
+    Based on the following story snippet, find a direct URL to a high-quality, relevant image (illustration or photo) from the web that depicts the scene.
     
-    const imagePrompt = promptResponse.text.trim();
+    Story: "${storyText.substring(0, 500)}..."
     
-    const imageResponse = await genAI.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: imagePrompt,
+    Instructions:
+    1. Use Google Search to find an image.
+    2. The output MUST be a valid image URL (starting with http/https and ending in .jpg, .png, .jpeg, or similar).
+    3. Do NOT describe the image, just return the URL.
+    4. If multiple are found, pick the most visually appealing one.
+    5. Return ONLY the URL string.
+    `;
+    
+    const response = await genAI.models.generateContent({
+        model: 'gemini-3-pro-preview', // Using Pro for better search capability
+        contents: searchPrompt,
         config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: '16:9',
-        },
+            tools: [{googleSearch: {}}],
+            thinkingConfig: { thinkingBudget: 2048 } // Small budget to think about the best search query
+        }
     });
 
-    const base64ImageBytes = imageResponse.generatedImages[0]?.image?.imageBytes;
-    if (!base64ImageBytes) throw new Error("Image generation failed.");
-    return base64ImageBytes;
-};
+    let imageUrl = response.text?.trim();
 
-export const generateVideoForStory = async (storyText: string): Promise<string> => {
-    const genAI = createAiInstance();
-    const videoPromptInstruction = `Analyze the mood and genre of the following Bengali story segment. Create a concise, visually descriptive prompt in English for a video generation model. Output only the English prompt. Story: ${storyText}`;
-    
-    // Using gemini-3-flash-preview for faster and better instruction following
-    const promptResponse = await genAI.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: videoPromptInstruction,
-    });
-    
-    const videoPrompt = promptResponse.text.trim();
-
-    let operation = await genAI.models.generateVideos({
-      model: 'veo-3.1-fast-generate-preview',
-      prompt: videoPrompt,
-      config: {
-        numberOfVideos: 1,
-        resolution: '720p',
-        aspectRatio: '16:9'
-      }
-    });
-
-    while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      operation = await genAI.operations.getVideosOperation({operation: operation});
+    // Sometimes grounding chunks have the actual source, but for this specific "Find URL" task, 
+    // we are relying on the model to extract a link found in its search results.
+    // Basic validation to ensure it looks like a URL
+    if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('www'))) {
+        return imageUrl;
     }
 
-    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-    if (!downloadLink) throw new Error("Video generation failed.");
-    return downloadLink;
-};
-
-export const generateSlideshowForStory = async (storyText: string): Promise<string[]> => {
-    const genAI = createAiInstance();
-    const planningPrompt = `Analyze the story and identify 4 scenes. Return ONLY a JSON array of strings. Story: ${storyText}`;
-
-    const planResponse = await genAI.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: planningPrompt,
-        config: { responseMimeType: 'application/json' }
-    });
-
-    let prompts: string[] = JSON.parse(planResponse.text).slice(0, 5);
-
-    const imagePromises = prompts.map(async (prompt) => {
-        try {
-            const response = await genAI.models.generateContent({
-                model: 'gemini-2.5-flash-image', // Keeping 2.5 flash image for generation as it's optimized for this
-                contents: { parts: [{ text: prompt }] },
-                config: { imageConfig: { aspectRatio: "16:9" } }
-            });
-            for (const part of response.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            }
-            return null;
-        } catch (e) { return null; }
-    });
-
-    const images = (await Promise.all(imagePromises)).filter((img): img is string => img !== null);
-    if (images.length === 0) throw new Error("Slideshow generation failed.");
-    return images;
+    // Fallback or if model chats instead of giving URL
+    throw new Error("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
 };
 
 export const generateRandomStoryPrompt = async (): Promise<string> => {

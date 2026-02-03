@@ -8,15 +8,12 @@ import Header from './components/Header';
 import MainChatView from './components/MainChatView';
 import SettingsView from './components/SettingsView';
 import ImageView from './components/ImageView';
-import VideoView from './components/VideoView';
-import SlideshowView from './components/SlideshowView';
-import ApiKeySelector from './components/ApiKeySelector';
 import AuthView from './components/AuthView';
 import Sidebar from './components/Sidebar';
 import VoiceSelectionModal from './components/VoiceSelectionModal';
 
 import { Message, Role, Source, StoryLength, AudioState, ChatSession } from './types';
-import { initChat, generateStoryAudio, generateImageForStory, generateVideoForStory, generateSlideshowForStory, generateRandomStoryPrompt } from './services/geminiService';
+import { initChat, generateStoryAudio, generateImageForStory, generateRandomStoryPrompt } from './services/geminiService';
 import { 
     onAuthChange, 
     getChatSessions, 
@@ -64,7 +61,6 @@ const App: React.FC = () => {
     const [storyLength, setStoryLength] = useState<StoryLength>('long');
     const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
     const [volume, setVolume] = useState(1);
-    const [showApiKeySelector, setShowApiKeySelector] = useState<boolean>(false);
     
     // Voice Modal State
     const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
@@ -76,7 +72,6 @@ const App: React.FC = () => {
     const analyserNodeRef = useRef<AnalyserNode | null>(null);
     const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
     const currentlyPlayingIdRef = useRef<string | null>(null);
-    const videoGenerationRequestRef = useRef<{ messageId: string } | null>(null);
 
     const playbackStartTimeRef = useRef<number>(0);
     const pausedAtRef = useRef<number>(0);
@@ -522,66 +517,19 @@ const App: React.FC = () => {
     const handleRequestImage = async (messageId: string) => {
         const message = messages.find(m => m.id === messageId);
         if (!message || !message.content || !currentSessionId) return;
+        
+        // Indicate "searching" state instead of generating
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: true } : m));
+        
         try {
-            const imageBase64 = await generateImageForStory(message.content);
-            const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
+            // Now calls search, not imagen
+            const imageUrl = await generateImageForStory(message.content);
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, imageUrl, isGeneratingImage: false } : m));
             // Update message in Firestore
             await saveMessage(currentSessionId, { ...message, imageUrl });
         } catch (imgErr) {
-            setError("ছবি তৈরি করতে ব্যর্থ।");
+            setError("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: false } : m));
-        }
-    };
-    
-    const proceedWithVideoGeneration = async (messageId: string) => {
-        const message = messages.find(m => m.id === messageId);
-        if (!message || !message.content || !currentSessionId) return;
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingVideo: true } : m));
-        try {
-            const videoUrl = await generateVideoForStory(message.content);
-            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, videoUrl, isGeneratingVideo: false } : m));
-            await saveMessage(currentSessionId, { ...message, videoUrl });
-        } catch (vidErr: any) {
-            setError("ভিডিও তৈরি করতে ব্যর্থ।");
-            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingVideo: false } : m));
-        }
-    };
-
-    const handleRequestVideo = async (messageId: string) => {
-        videoGenerationRequestRef.current = { messageId };
-        try {
-            const hasKey = await window.aistudio.hasSelectedApiKey();
-            if (!hasKey) {
-                setShowApiKeySelector(true);
-                return;
-            }
-            await proceedWithVideoGeneration(messageId);
-        } catch (e) {
-            setError("API কী পরীক্ষা করতে একটি সমস্যা হয়েছে।");
-        }
-    };
-
-    const handleRequestSlideshow = async (messageId: string) => {
-        const message = messages.find(m => m.id === messageId);
-        if (!message || !message.content || !currentSessionId) return;
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingSlideshow: true } : m));
-        try {
-            const images = await generateSlideshowForStory(message.content);
-            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, slideshow: images, isGeneratingSlideshow: false } : m));
-            await saveMessage(currentSessionId, { ...message, slideshow: images });
-        } catch (err) {
-            setError("স্লাইডশো তৈরি করতে ব্যর্থ।");
-            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingSlideshow: false } : m));
-        }
-    };
-    
-    const handleKeySelectedAndRetry = async () => {
-        setShowApiKeySelector(false);
-        if (videoGenerationRequestRef.current) {
-            await proceedWithVideoGeneration(videoGenerationRequestRef.current.messageId);
-            videoGenerationRequestRef.current = null;
         }
     };
 
@@ -603,13 +551,13 @@ const App: React.FC = () => {
         const lastMessage = messages[messages.length - 1];
         if (!lastMessage) return [];
         if (lastMessage.id === 'initial-message') return STORY_SUGGESTIONS;
-        if (lastMessage.role === Role.MODEL && messages.length > 1 && !lastMessage.imageUrl && !lastMessage.videoUrl && !lastMessage.slideshow) {
+        if (lastMessage.role === Role.MODEL && messages.length > 1 && !lastMessage.imageUrl) {
             return CONTINUATION_SUGGESTIONS;
         }
         return [];
     };
     
-    const combinedIsLoading = isLoading || isGeneratingPrompt || messages.some(m => m.isGeneratingImage || m.isGeneratingVideo || m.isGeneratingSlideshow);
+    const combinedIsLoading = isLoading || isGeneratingPrompt || messages.some(m => m.isGeneratingImage);
     
     if (isAuthChecking) {
         return (
@@ -658,8 +606,9 @@ const App: React.FC = () => {
                                             handlePlayPause={handlePlayPause}
                                             handleDownloadAudio={handleDownloadAudio}
                                             handleRequestImage={handleRequestImage}
-                                            handleRequestVideo={handleRequestVideo}
-                                            handleRequestSlideshow={handleRequestSlideshow}
+                                            // Removing handlers for video/slideshow
+                                            handleRequestVideo={() => {}} 
+                                            handleRequestSlideshow={() => {}}
                                             volume={volume}
                                             handleVolumeChange={handleVolumeChange}
                                             handleSeek={handleSeek}
@@ -684,8 +633,6 @@ const App: React.FC = () => {
                                     }
                                 />
                                 <Route path="/image/:messageId" element={<ImageView messages={messages} />} />
-                                <Route path="/video/:messageId" element={<VideoView messages={messages} />} />
-                                <Route path="/slideshow/:messageId" element={<SlideshowView messages={messages} />} />
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         )}
@@ -701,13 +648,6 @@ const App: React.FC = () => {
                     }}
                     onConfirm={handleVoiceConfirm}
                 />
-
-                {showApiKeySelector && (
-                    <ApiKeySelector
-                        onClose={() => setShowApiKeySelector(false)}
-                        onKeySelected={handleKeySelectedAndRetry}
-                    />
-                )}
             </div>
         </HashRouter>
     );
