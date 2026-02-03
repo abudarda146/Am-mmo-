@@ -498,6 +498,8 @@ const App: React.FC = () => {
             const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
             setError(errorMessage);
             setIsLoading(false);
+            // Critical fix: Reset chat instance to recover from error state
+            chat.current = null;
         }
     };
 

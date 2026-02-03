@@ -21,26 +21,23 @@ const getSystemInstruction = (length: 'short' | 'medium' | 'long'): string => {
    - ব্যবহারকারী যদি কোনো নির্দিষ্ট গল্প, উপন্যাস বা তথ্যের খোঁজ করেন, তবে **Google Search** টুল ব্যবহার করে সঠিক এবং আপ-টু-ডেট তথ্য খুঁজে বের করুন।
    - ইন্টারনেট থেকে প্রাপ্ত গল্পের মূল কাহিনী, ঘটনা, চরিত্র বা তথ্য **কোনোভাবেই পরিবর্তন করবেন না**। ব্যবহারকারী যা চেয়েছেন, ঠিক সেই গল্পটিই পরিবেশন করুন।
 
-২. **চিন্তাভাবনা ও সৃজনশীলতা (Thinking Mode):**
-   - গল্প এগিয়ে নেওয়ার সময় বা জটিল কোনো প্লট তৈরির সময় গভীরভাবে চিন্তা করুন (Thinking Mode)। চরিত্রের মনস্তত্ত্ব, পরিবেশের বর্ণনা এবং ঘটনার কার্যকারণ সম্পর্ক নিয়ে ভেবে উত্তর দিন।
-
-৩. **বর্ণনার শৈলী (অত্যন্ত গুরুত্বপূর্ণ):** 
+২. **বর্ণনার শৈলী (অত্যন্ত গুরুত্বপূর্ণ):** 
    - গল্পটি লেখার সময় কখনোই **নাটকের স্ক্রিপ্ট বা ডায়ালগ ফরম্যাট** (যেমন— "রহিম: তুমি কোথায় যাচ্ছ?" বা "করিম: আমি ভালো আছি।") ব্যবহার করবেন না। এটি শুনতে যান্ত্রিক লাগে।
    - এর পরিবর্তে **উপন্যাস বা গল্পের বর্ণনামূলক ভঙ্গি** ব্যবহার করুন (যেমন— রহিম জিজ্ঞেস করল, "তুমি কোথায় যাচ্ছ?" প্রতিউত্তরে করিম জানাল যে সে ভালো আছে।)।
    - মূল গল্পের ডায়ালগগুলো ঠিক রাখুন, কিন্তু সেগুলোকে **গল্পের ছলে (Narrative Prose)** সাজিয়ে লিখুন।
 
-৪. **ভাষা:** সম্পূর্ণ কথোপকথন সাবলীল বাংলা ভাষায় হতে হবে।
+৩. **ভাষা:** সম্পূর্ণ কথোপকথন সাবলীল বাংলা ভাষায় হতে হবে।
 
-৫. **দৈর্ঘ্য:** ${lengthInstruction}
+৪. **দৈর্ঘ্য:** ${lengthInstruction}
 
-৬. **উৎস:** তথ্যের উৎস বা ওয়েবসাইটের নাম উল্লেখ করতে পারেন।
+৫. **উৎস:** তথ্যের উৎস বা ওয়েবসাইটের নাম উল্লেখ করতে পারেন।
 
-৭. **ধারাবাহিকতা ও সামঞ্জস্য (Continuity & Consistency):** 
+৬. **ধারাবাহিকতা ও সামঞ্জস্য (Continuity & Consistency):** 
    - ব্যবহারকারী যদি গল্পটি চালিয়ে যেতে বলেন, তবে আগের পর্বের ঘটনা, চরিত্রের নাম এবং গল্পের সুর (Tone) মনে রেখে ঠিক সেখান থেকেই শুরু করুন যেখানে শেষ হয়েছিল। 
    - চরিত্রের ব্যক্তিত্ব এবং কথা বলার ধরণ পুরো গল্পজুড়ে একই রাখুন।
    - হঠাৎ করে গল্পের প্রেক্ষাপট বা লয় পরিবর্তন করবেন না। আগের অংশের সাথে একটি মসৃণ সংযোগ (Seamless transition) তৈরি করুন।
 
-৮. **সম্ভাষণ ও নিরপেক্ষতা:** কথোপকথনের শুরুতে বা গল্পের মাঝে কোনো নির্দিষ্ট ধর্মীয় বা সাম্প্রদায়িক সম্ভাষণ ব্যবহার করবেন না। এর পরিবর্তে সর্বজনীন, মার্জিত ও নিরপেক্ষ সম্ভাষণ (যেমন— "শুভেচ্ছা", "হ্যালো", "স্বাগতম") ব্যবহার করুন অথবা সরাসরি মূল প্রসঙ্গে চলে যান।
+৭. **সম্ভাষণ ও নিরপেক্ষতা:** কথোপকথনের শুরুতে বা গল্পের মাঝে কোনো নির্দিষ্ট ধর্মীয় বা সাম্প্রদায়িক সম্ভাষণ ব্যবহার করবেন না। এর পরিবর্তে সর্বজনীন, মার্জিত ও নিরপেক্ষ সম্ভাষণ (যেমন— "শুভেচ্ছা", "হ্যালো", "স্বাগতম") ব্যবহার করুন অথবা সরাসরি মূল প্রসঙ্গে চলে যান।
 `;
 };
 
@@ -62,8 +59,8 @@ export const initChat = (length: 'short' | 'medium' | 'long' = 'long', history: 
     parts: [{ text: msg.content }]
   })).filter(h => h.parts[0].text !== "");
 
-  // Using gemini-3-flash-preview for better Free Tier reliability and speed
-  // Flash models have higher rate limits than Pro models
+  // Using gemini-3-flash-preview for high speed and reliability on Free Tier
+  // Removed thinkingConfig as it can be unstable on free tier previews for this specific use case
   return genAI.chats.create({
     model: 'gemini-3-flash-preview',
     history: geminiHistory,
@@ -71,8 +68,6 @@ export const initChat = (length: 'short' | 'medium' | 'long' = 'long', history: 
         systemInstruction: getSystemInstruction(length),
         temperature: 0.8,
         tools: [{googleSearch: {}}],
-        // Flash thinking budget is max 24576. Setting it lower ensures faster responses.
-        thinkingConfig: { thinkingBudget: 10240 }, 
     },
   });
 };
@@ -113,7 +108,6 @@ export const generateStoryAudio = async (text: string, voiceName: string = 'Kore
 
 /**
  * Searches for an image URL relevant to the story using Google Search grounding.
- * This replaces the Imagen generation to support Free Tier usage.
  */
 export const generateImageForStory = async (storyText: string): Promise<string> => {
     const genAI = createAiInstance();
@@ -131,26 +125,20 @@ export const generateImageForStory = async (storyText: string): Promise<string> 
     5. Return ONLY the URL string.
     `;
     
-    // Using flash here as well for consistency and speed
     const response = await genAI.models.generateContent({
         model: 'gemini-3-flash-preview', 
         contents: searchPrompt,
         config: {
             tools: [{googleSearch: {}}],
-            thinkingConfig: { thinkingBudget: 2048 } 
         }
     });
 
     let imageUrl = response.text?.trim();
 
-    // Sometimes grounding chunks have the actual source, but for this specific "Find URL" task, 
-    // we are relying on the model to extract a link found in its search results.
-    // Basic validation to ensure it looks like a URL
     if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('www'))) {
         return imageUrl;
     }
 
-    // Fallback or if model chats instead of giving URL
     throw new Error("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
 };
 
