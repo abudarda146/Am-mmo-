@@ -28,7 +28,10 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading })
 
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm p-4 border-t border-slate-700 sticky bottom-0">
+    // Removed 'sticky bottom-0' because in the flex-col layout of MainChatView, this input is naturally at the bottom.
+    // 'sticky' was causing issues with scrolling behavior on mobile.
+    // Added 'z-20' and specific background to ensure it sits cleanly above content.
+    <div className="bg-slate-800/90 backdrop-blur-md p-4 border-t border-slate-700 w-full z-20 shrink-0">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-center space-x-4">
         <textarea
           value={input}

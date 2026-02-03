@@ -561,7 +561,7 @@ const App: React.FC = () => {
     
     if (isAuthChecking) {
         return (
-            <div className="h-screen w-screen bg-slate-900 flex items-center justify-center">
+            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
                 <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
@@ -569,13 +569,14 @@ const App: React.FC = () => {
 
     return (
         <HashRouter>
-            <div className="h-screen w-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] flex flex-col overflow-hidden">
+            {/* Updated Main Container: Fixed full screen with dynamic viewport height */}
+            <div className="fixed inset-0 h-[100dvh] w-full bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] flex flex-col overflow-hidden">
                 <Header 
                     user={user} 
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
                 />
                 
-                <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 flex overflow-hidden relative">
                     {user && (
                         <Sidebar 
                             sessions={sessions}
@@ -588,7 +589,7 @@ const App: React.FC = () => {
                         />
                     )}
 
-                    <div className="flex-1 flex flex-col min-w-0 bg-slate-900/40 relative">
+                    <div className="flex-1 flex flex-col min-w-0 bg-slate-900/40 relative h-full">
                         {!user ? (
                         <AuthView />
                         ) : (

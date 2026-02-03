@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
     <title>গল্পের আসর</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +13,8 @@
     <style>
       body {
         font-family: 'Tiro Bangla', serif;
+        /* Prevent pull-to-refresh on mobile which feels weird in chat apps */
+        overscroll-behavior-y: none; 
       }
       @keyframes blink {
         0%, 100% { opacity: 1; }
@@ -81,6 +83,20 @@
       }
       .animate-pulse-glow {
         animation: pulse-glow 2s infinite ease-in-out;
+      }
+      /* Custom scrollbar for sidebar and chat */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(30, 41, 59, 0.5);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.8);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 1);
       }
     </style>
   <script type="importmap">
