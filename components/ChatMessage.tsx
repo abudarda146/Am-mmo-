@@ -87,11 +87,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             <div className="mb-2 rounded-lg overflow-hidden border border-slate-700">
                 {message.isGeneratingImage ? (
                     <div className="relative w-full aspect-video bg-slate-700/50 flex flex-col items-center justify-center p-4 animate-shimmer">
-                        <span className="text-slate-300 text-sm font-medium z-10">গল্পের ছবি খোঁজা হচ্ছে...</span>
+                        <span className="text-slate-300 text-sm font-medium z-10">গল্পের ছবি তৈরি হচ্ছে...</span>
                     </div>
                 ) : message.imageUrl ? (
                     <Link to={`/image/${message.id}`} className="block relative group" title="ছবিটি বড় করে দেখুন">
-                        <img src={message.imageUrl} alt="Found content" className="max-w-full h-auto rounded-lg block group-hover:opacity-70 transition-opacity" />
+                        <img src={message.imageUrl} alt="Generated content" className="max-w-full h-auto rounded-lg block group-hover:opacity-70 transition-opacity" />
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <span className="text-white font-bold flex items-center gap-2 text-sm">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
@@ -119,8 +119,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             <div className="mt-4 border-t border-slate-700 pt-3 grid grid-cols-1 gap-3">
                 {!message.imageUrl && !message.isGeneratingImage && (
                    <button onClick={() => onRequestImage(message.id)} className="px-3 py-2 bg-slate-700/80 text-amber-300 rounded-lg hover:bg-slate-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm w-full sm:w-auto">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
-                        গল্পের ছবি খুঁজুন
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
+                        গল্পের ছবি তৈরি করুন
                     </button>
                 )}
             </div>

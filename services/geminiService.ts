@@ -164,42 +164,68 @@ export const generateStoryAudio = async (text: string, voiceName: string = 'Kore
 };
 
 /**
- * Searches for an image URL relevant to the story using Google Search grounding.
+ * GENERATES an IMAGE using CODE (SVG).
+ * Instead of asking for a pixel image, we ask Gemini to WRITE THE CODE for an SVG illustration.
+ * This is "Generative Art via Code".
  */
 export const generateImageForStory = async (storyText: string): Promise<string> => {
     const genAI = createAiInstance();
     
-    const searchPrompt = `
-    Based on the following story snippet, find a direct URL to a high-quality, relevant image (illustration or photo) from the web that depicts the scene.
+    // We use the TEXT model (gemini-3-flash) because we are generating CODE (text), not pixels.
+    // This is faster, free, and very creative.
+    const codePrompt = `
+    You are an expert digital artist who paints with code.
     
-    Story: "${storyText.substring(0, 500)}..."
+    Task: Create an artistic, minimalist, and atmospheric SVG illustration based on this story snippet:
+    "${storyText.substring(0, 400)}..."
     
-    Instructions:
-    1. Use Google Search to find an image.
-    2. The output MUST be a valid image URL (starting with http/https and ending in .jpg, .png, .jpeg, or similar).
-    3. Do NOT describe the image, just return the URL.
-    4. If multiple are found, pick the most visually appealing one.
-    5. Return ONLY the URL string.
+    Requirements:
+    1.  **Output:** Return ONLY valid XML SVG code (<svg>...</svg>).
+    2.  **Style:** Flat design, vector art, abstract or symbolic representation. Use a beautiful, cohesive color palette suitable for a storybook.
+    3.  **Technical:**
+        - Use viewBox="0 0 800 450" (16:9 aspect ratio).
+        - Ensure all tags are closed properly.
+        - Do not use external links or images inside the SVG.
+        - Make it visually rich but clean code.
+    4.  **Format:** Do NOT use markdown code blocks (\`\`\`xml). Just raw string.
     `;
     
     try {
         const response = await genAI.models.generateContent({
             model: 'gemini-3-flash-preview', 
-            contents: searchPrompt,
+            contents: { parts: [{ text: codePrompt }] },
             config: {
-                tools: [{googleSearch: {}}],
+                temperature: 0.7, // Creativity balance
             }
         });
 
-        let imageUrl = response.text?.trim();
+        let svgCode = response.text?.trim();
 
-        if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('www'))) {
-            return imageUrl;
+        if (!svgCode) throw new Error("No SVG code generated");
+
+        // Cleanup: Remove markdown if the model added it despite instructions
+        svgCode = svgCode.replace(/```xml/g, '').replace(/```svg/g, '').replace(/```/g, '').trim();
+
+        // Validate basic SVG structure
+        if (!svgCode.startsWith('<svg') || !svgCode.endsWith('</svg>')) {
+             // Try to find the svg tag inside the text
+             const start = svgCode.indexOf('<svg');
+             const end = svgCode.lastIndexOf('</svg>');
+             if (start !== -1 && end !== -1) {
+                 svgCode = svgCode.substring(start, end + 6);
+             } else {
+                 throw new Error("Invalid SVG structure");
+             }
         }
-        throw new Error("No URL found");
+
+        // Convert SVG string to Base64 Data URI
+        // We use encodeURIComponent to handle Unicode characters (Bengali text in title/desc) safely
+        const base64Svg = btoa(unescape(encodeURIComponent(svgCode)));
+        return `data:image/svg+xml;base64,${base64Svg}`;
+
     } catch (e) {
-        console.error("Image generation failed:", e);
-        throw new Error("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
+        console.error("SVG Art generation failed:", e);
+        throw new Error("গল্পের চিত্রাঙ্কন সম্ভব হয়নি।");
     }
 };
 
