@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Chat, Modality } from "@google/genai";
 import { Message, Role } from "../types";
+import { decode, encode } from "../utils/audioUtils";
 
 const getSystemInstruction = (length: 'short' | 'medium' | 'long'): string => {
     let lengthInstruction = "আপনার উত্তর বিস্তারিত এবং লম্বা হওয়া উচিত।";
@@ -57,57 +58,113 @@ export const initChat = (length: 'short' | 'medium' | 'long' = 'long', history: 
   })).filter(h => h.parts[0].text !== "");
 
   // Using gemini-3-flash-preview for high speed.
-  // CRITICAL FIX: Removed 'tools: [{googleSearch: {}}]' from here.
-  // The search tool often causes generic errors on the free tier if the query doesn't trigger a clear search intent,
-  // or if the backend services timeout. Removing it makes the story generation pure text-based and much more stable.
   return genAI.chats.create({
     model: 'gemini-3-flash-preview',
     history: geminiHistory,
     config: {
         systemInstruction: getSystemInstruction(length),
         temperature: 0.8,
-        // tools: [], // Explicitly no tools for the main chat to ensure stability
     },
   });
+};
+
+/**
+ * Splits long text into smaller chunks that respect sentence boundaries.
+ * This prevents the TTS API from failing on long inputs.
+ */
+const splitTextIntoChunks = (text: string, limit: number = 2000): string[] => {
+    if (text.length <= limit) return [text];
+
+    const chunks: string[] = [];
+    let currentChunk = "";
+    
+    // Split by sentence delimiters (|, ?, !, .) to preserve flow
+    const sentences = text.split(/([।?!.])/).reduce((acc: string[], val, i, arr) => {
+        if (i % 2 === 0) {
+            // Even index is the sentence content
+            const nextDelim = arr[i + 1] || "";
+            acc.push(val + nextDelim);
+        }
+        return acc;
+    }, []);
+
+    for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > limit) {
+            if (currentChunk) chunks.push(currentChunk);
+            currentChunk = sentence;
+        } else {
+            currentChunk += sentence;
+        }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+    
+    return chunks;
 };
 
 export const generateStoryAudio = async (text: string, voiceName: string = 'Kore'): Promise<string> => {
   const genAI = createAiInstance();
-  // Enhanced prompt for professional audiobook quality narration with strict pacing and emotion controls
-  const ttsPrompt = `
-  একজন বিশ্বমানের পেশাদার অডিওবুক ন্যারেটর হিসেবে এই গল্পটি পাঠ করুন।
   
-  নির্দেশনা:
-  ১. **কণ্ঠস্বর:** গভীর, আবেগপূর্ণ এবং নাটকীয়।
-  ২. **লয়:** খুব দ্রুত নয়, ধীর এবং আকর্ষক লয়ে (Slow and engaging pace) পড়ুন যাতে শ্রোতা প্রতিটি দৃশ্য কল্পনা করতে পারে।
-  ৩. **বিরামচিহ্ন:** দাড়ি, কমা এবং প্রশ্নবোধক চিহ্নের সঠিক ব্যবহার করে বিরাম নিন।
-  ৪. **বর্জনীয়:** গল্পের বাইরে কোনো ভূমিকা (যেমন "গল্পটি নিচে দেওয়া হলো") বা উপসংহার যোগ করবেন না। শুধুমাত্র মূল টেক্সটটিই পাঠ করুন।
+  // 1. Clean Markdown
+  const cleanText = text.replace(/[*#_`]/g, '').trim();
   
-  টেক্সট: "${text}"`;
-  
-  const response = await genAI.models.generateContent({
-    model: "gemini-2.5-flash-preview-tts",
-    contents: [{ parts: [{ text: ttsPrompt }] }],
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName },
-          },
-      },
-    },
-  });
+  // 2. Split into safe chunks (approx 2000 chars each)
+  const chunks = splitTextIntoChunks(cleanText, 2000);
+  console.log(`Generating audio for ${text.length} chars in ${chunks.length} chunks.`);
 
-  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) {
-    throw new Error("Audio generation failed, no data returned.");
+  const audioParts: Uint8Array[] = [];
+
+  // 3. Generate audio for each chunk sequentially
+  for (const chunk of chunks) {
+      if (!chunk.trim()) continue;
+      
+      const ttsPrompt = `Read this text in Bengali: "${chunk}"`;
+      
+      try {
+          const response = await genAI.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: ttsPrompt }] }],
+            config: {
+              responseModalities: [Modality.AUDIO],
+              speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName },
+                  },
+              },
+            },
+          });
+
+          const chunkBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          if (chunkBase64) {
+              audioParts.push(decode(chunkBase64));
+          } else {
+              console.warn("One audio chunk failed to generate, skipping.");
+          }
+      } catch (e) {
+          console.error("Error generating chunk:", e);
+          // Continue to next chunk instead of failing completely
+      }
   }
-  return base64Audio;
+
+  if (audioParts.length === 0) {
+      throw new Error("Audio generation failed for all chunks.");
+  }
+
+  // 4. Merge all audio parts (Raw PCM)
+  const totalLength = audioParts.reduce((acc, part) => acc + part.length, 0);
+  const mergedAudio = new Uint8Array(totalLength);
+  
+  let offset = 0;
+  for (const part of audioParts) {
+      mergedAudio.set(part, offset);
+      offset += part.length;
+  }
+
+  // 5. Convert back to Base64
+  return encode(mergedAudio);
 };
 
 /**
  * Searches for an image URL relevant to the story using Google Search grounding.
- * This function KEEPS the googleSearch tool because it is specifically for finding images.
  */
 export const generateImageForStory = async (storyText: string): Promise<string> => {
     const genAI = createAiInstance();
@@ -141,7 +198,6 @@ export const generateImageForStory = async (storyText: string): Promise<string> 
         }
         throw new Error("No URL found");
     } catch (e) {
-        // Fail gracefully if image search fails, don't crash the app
         console.error("Image generation failed:", e);
         throw new Error("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
     }
