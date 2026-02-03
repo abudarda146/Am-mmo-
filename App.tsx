@@ -25,7 +25,7 @@ import {
 } from './services/firebaseService';
 import { decode, decodeAudioData, audioBufferToWav } from './utils/audioUtils';
 
-const INITIAL_MESSAGE_CONTENT = 'শুভেচ্ছা! আমি আপনার ব্যক্তিগত গল্পকার। ইন্টারনেট থেকে যেকোনো গল্প খুঁজে বের করে আপনাকে শোনাতে পারি। আপনি কোন গল্পটি শুনতে চান?';
+const INITIAL_MESSAGE_CONTENT = 'শুভেচ্ছা! আমি আপনার ব্যক্তিগত গল্পকার। আমি যেকোনো বিষয় নিয়ে আপনাকে গল্প শোনাতে পারি। আপনি কোন গল্পটি শুনতে চান?';
 const INITIAL_MESSAGE: Message = { id: 'initial-message', role: Role.MODEL, content: INITIAL_MESSAGE_CONTENT, timestamp: Date.now() };
 
 const STORY_SUGGESTIONS = [
@@ -494,7 +494,7 @@ const App: React.FC = () => {
              setSessions(updatedSessions);
 
         } catch (e) {
-            console.error(e);
+            console.error("Gemini API Error:", e); // Log full error for debugging
             const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
             setError(errorMessage);
             setIsLoading(false);

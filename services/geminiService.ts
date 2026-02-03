@@ -14,12 +14,12 @@ const getSystemInstruction = (length: 'short' | 'medium' | 'long'): string => {
     }
 
     return `
-আপনি একজন অত্যন্ত প্রসিদ্ধ, বাকপটু এবং পেশাদার গল্পকার। আপনার প্রধান উদ্দেশ্য হলো ব্যবহারকারীর অনুরোধে ইন্টারনেট থেকে গল্প খুঁজে বের করে তা সুন্দরভাবে এবং শ্রুতিমধুরভাবে বর্ণনা করা।
+আপনি একজন অত্যন্ত প্রসিদ্ধ, বাকপটু এবং পেশাদার গল্পকার। আপনার প্রধান উদ্দেশ্য হলো ব্যবহারকারীর অনুরোধে চমৎকার সব গল্প সুন্দরভাবে এবং শ্রুতিমধুরভাবে বর্ণনা করা।
 
 আপনার জন্য কঠোর নির্দেশাবলী:
-১. **গল্পের বিশ্বাসযোগ্যতা ও অনুসন্ধান:** 
-   - ব্যবহারকারী যদি কোনো নির্দিষ্ট গল্প, উপন্যাস বা তথ্যের খোঁজ করেন, তবে **Google Search** টুল ব্যবহার করে সঠিক এবং আপ-টু-ডেট তথ্য খুঁজে বের করুন।
-   - ইন্টারনেট থেকে প্রাপ্ত গল্পের মূল কাহিনী, ঘটনা, চরিত্র বা তথ্য **কোনোভাবেই পরিবর্তন করবেন না**। ব্যবহারকারী যা চেয়েছেন, ঠিক সেই গল্পটিই পরিবেশন করুন।
+১. **গল্পের বিশ্বাসযোগ্যতা:** 
+   - ব্যবহারকারী যদি কোনো বিখ্যাত গল্প শুনতে চান, তবে আপনার নিজের জ্ঞানভান্ডার থেকে সেটি হুবহু এবং সঠিক তথ্যের সাথে বর্ণনা করুন।
+   - ইন্টারনেট সার্চ করার প্রয়োজন নেই, আপনার নিজের সৃজনশীলতা এবং জ্ঞান ব্যবহার করুন।
 
 ২. **বর্ণনার শৈলী (অত্যন্ত গুরুত্বপূর্ণ):** 
    - গল্পটি লেখার সময় কখনোই **নাটকের স্ক্রিপ্ট বা ডায়ালগ ফরম্যাট** (যেমন— "রহিম: তুমি কোথায় যাচ্ছ?" বা "করিম: আমি ভালো আছি।") ব্যবহার করবেন না। এটি শুনতে যান্ত্রিক লাগে।
@@ -30,14 +30,11 @@ const getSystemInstruction = (length: 'short' | 'medium' | 'long'): string => {
 
 ৪. **দৈর্ঘ্য:** ${lengthInstruction}
 
-৫. **উৎস:** তথ্যের উৎস বা ওয়েবসাইটের নাম উল্লেখ করতে পারেন।
-
-৬. **ধারাবাহিকতা ও সামঞ্জস্য (Continuity & Consistency):** 
+৫. **ধারাবাহিকতা ও সামঞ্জস্য (Continuity & Consistency):** 
    - ব্যবহারকারী যদি গল্পটি চালিয়ে যেতে বলেন, তবে আগের পর্বের ঘটনা, চরিত্রের নাম এবং গল্পের সুর (Tone) মনে রেখে ঠিক সেখান থেকেই শুরু করুন যেখানে শেষ হয়েছিল। 
    - চরিত্রের ব্যক্তিত্ব এবং কথা বলার ধরণ পুরো গল্পজুড়ে একই রাখুন।
-   - হঠাৎ করে গল্পের প্রেক্ষাপট বা লয় পরিবর্তন করবেন না। আগের অংশের সাথে একটি মসৃণ সংযোগ (Seamless transition) তৈরি করুন।
 
-৭. **সম্ভাষণ ও নিরপেক্ষতা:** কথোপকথনের শুরুতে বা গল্পের মাঝে কোনো নির্দিষ্ট ধর্মীয় বা সাম্প্রদায়িক সম্ভাষণ ব্যবহার করবেন না। এর পরিবর্তে সর্বজনীন, মার্জিত ও নিরপেক্ষ সম্ভাষণ (যেমন— "শুভেচ্ছা", "হ্যালো", "স্বাগতম") ব্যবহার করুন অথবা সরাসরি মূল প্রসঙ্গে চলে যান।
+৬. **সম্ভাষণ ও নিরপেক্ষতা:** কথোপকথনের শুরুতে বা গল্পের মাঝে কোনো নির্দিষ্ট ধর্মীয় বা সাম্প্রদায়িক সম্ভাষণ ব্যবহার করবেন না। এর পরিবর্তে সর্বজনীন, মার্জিত ও নিরপেক্ষ সম্ভাষণ (যেমন— "শুভেচ্ছা", "হ্যালো", "স্বাগতম") ব্যবহার করুন অথবা সরাসরি মূল প্রসঙ্গে চলে যান।
 `;
 };
 
@@ -59,15 +56,17 @@ export const initChat = (length: 'short' | 'medium' | 'long' = 'long', history: 
     parts: [{ text: msg.content }]
   })).filter(h => h.parts[0].text !== "");
 
-  // Using gemini-3-flash-preview for high speed and reliability on Free Tier
-  // Removed thinkingConfig as it can be unstable on free tier previews for this specific use case
+  // Using gemini-3-flash-preview for high speed.
+  // CRITICAL FIX: Removed 'tools: [{googleSearch: {}}]' from here.
+  // The search tool often causes generic errors on the free tier if the query doesn't trigger a clear search intent,
+  // or if the backend services timeout. Removing it makes the story generation pure text-based and much more stable.
   return genAI.chats.create({
     model: 'gemini-3-flash-preview',
     history: geminiHistory,
     config: {
         systemInstruction: getSystemInstruction(length),
         temperature: 0.8,
-        tools: [{googleSearch: {}}],
+        // tools: [], // Explicitly no tools for the main chat to ensure stability
     },
   });
 };
@@ -108,6 +107,7 @@ export const generateStoryAudio = async (text: string, voiceName: string = 'Kore
 
 /**
  * Searches for an image URL relevant to the story using Google Search grounding.
+ * This function KEEPS the googleSearch tool because it is specifically for finding images.
  */
 export const generateImageForStory = async (storyText: string): Promise<string> => {
     const genAI = createAiInstance();
@@ -125,21 +125,26 @@ export const generateImageForStory = async (storyText: string): Promise<string> 
     5. Return ONLY the URL string.
     `;
     
-    const response = await genAI.models.generateContent({
-        model: 'gemini-3-flash-preview', 
-        contents: searchPrompt,
-        config: {
-            tools: [{googleSearch: {}}],
+    try {
+        const response = await genAI.models.generateContent({
+            model: 'gemini-3-flash-preview', 
+            contents: searchPrompt,
+            config: {
+                tools: [{googleSearch: {}}],
+            }
+        });
+
+        let imageUrl = response.text?.trim();
+
+        if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('www'))) {
+            return imageUrl;
         }
-    });
-
-    let imageUrl = response.text?.trim();
-
-    if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('www'))) {
-        return imageUrl;
+        throw new Error("No URL found");
+    } catch (e) {
+        // Fail gracefully if image search fails, don't crash the app
+        console.error("Image generation failed:", e);
+        throw new Error("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
     }
-
-    throw new Error("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
 };
 
 export const generateRandomStoryPrompt = async (): Promise<string> => {
