@@ -62,15 +62,17 @@ export const initChat = (length: 'short' | 'medium' | 'long' = 'long', history: 
     parts: [{ text: msg.content }]
   })).filter(h => h.parts[0].text !== "");
 
-  // Using gemini-3-pro-preview for advanced reasoning (Thinking) and Tool use
+  // Using gemini-3-flash-preview for better Free Tier reliability and speed
+  // Flash models have higher rate limits than Pro models
   return genAI.chats.create({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3-flash-preview',
     history: geminiHistory,
     config: {
         systemInstruction: getSystemInstruction(length),
         temperature: 0.8,
         tools: [{googleSearch: {}}],
-        thinkingConfig: { thinkingBudget: 32768 }, // Enable maximum thinking for complex storytelling
+        // Flash thinking budget is max 24576. Setting it lower ensures faster responses.
+        thinkingConfig: { thinkingBudget: 10240 }, 
     },
   });
 };
@@ -129,12 +131,13 @@ export const generateImageForStory = async (storyText: string): Promise<string> 
     5. Return ONLY the URL string.
     `;
     
+    // Using flash here as well for consistency and speed
     const response = await genAI.models.generateContent({
-        model: 'gemini-3-pro-preview', // Using Pro for better search capability
+        model: 'gemini-3-flash-preview', 
         contents: searchPrompt,
         config: {
             tools: [{googleSearch: {}}],
-            thinkingConfig: { thinkingBudget: 2048 } // Small budget to think about the best search query
+            thinkingConfig: { thinkingBudget: 2048 } 
         }
     });
 
