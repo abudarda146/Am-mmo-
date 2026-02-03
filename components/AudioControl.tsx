@@ -44,13 +44,13 @@ const AudioControl: React.FC<AudioControlProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
-    const capsYPositionRef = useRef<number[]>([]); // To store the vertical position of caps
+    const capsYPositionRef = useRef<number[]>([]); 
 
     useEffect(() => {
         if (!canvasRef.current || !analyser || !isPlaying) return;
 
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for no transparency if possible, but we need clearRect
         if (!ctx) return;
 
         // Handle high-DPI displays
@@ -63,13 +63,13 @@ const AudioControl: React.FC<AudioControlProps> = ({
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         
-        // Settings for the RGB Visualizer
-        const barCount = 64; // How many bars to show
-        const barWidth = (rect.width / barCount) - 2; // Subtract spacing
+        // OPTIMIZED SETTINGS
+        // Reduced bar count for better performance on mobile
+        const barCount = 40; 
+        const barWidth = (rect.width / barCount) - 2; 
         const capHeight = 2;
-        const capFallSpeed = 1.5;
+        const capFallSpeed = 2; // Faster fall for snappier feel
 
-        // Initialize caps if array length changed
         if (capsYPositionRef.current.length !== barCount) {
             capsYPositionRef.current = new Array(barCount).fill(rect.height);
         }
@@ -78,63 +78,49 @@ const AudioControl: React.FC<AudioControlProps> = ({
             animationRef.current = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
 
+            // Clear canvas efficiently
             ctx.clearRect(0, 0, rect.width, rect.height);
-            
-            // Create RGB Rainbow Gradient
+
+            // Create Rainbow Gradient
+            // We do this every frame to allow for dynamic resizing if needed, 
+            // but it's cheap enough without shadows.
             const gradient = ctx.createLinearGradient(0, 0, rect.width, 0);
-            gradient.addColorStop(0, '#ff0000');    // Red
-            gradient.addColorStop(0.15, '#ff7f00'); // Orange
-            gradient.addColorStop(0.30, '#ffff00'); // Yellow
-            gradient.addColorStop(0.45, '#00ff00'); // Green
-            gradient.addColorStop(0.60, '#00ffff'); // Cyan
-            gradient.addColorStop(0.75, '#0000ff'); // Blue
-            gradient.addColorStop(0.90, '#8b00ff'); // Violet
-            gradient.addColorStop(1, '#ff00ff');    // Magenta
+            gradient.addColorStop(0, '#ef4444');    // Red
+            gradient.addColorStop(0.16, '#f97316'); // Orange
+            gradient.addColorStop(0.33, '#eab308'); // Yellow
+            gradient.addColorStop(0.5, '#22c55e');  // Green
+            gradient.addColorStop(0.66, '#06b6d4'); // Cyan
+            gradient.addColorStop(0.83, '#3b82f6'); // Blue
+            gradient.addColorStop(1, '#a855f7');    // Purple
 
             ctx.fillStyle = gradient;
-            
-            // Add Neon Glow
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
 
-            // Draw Bars and Caps
-            // We use a step to sample the frequency data evenly
+            // NO SHADOWS (ctx.shadowBlur) - This fixes the lag!
+
             const step = Math.floor(bufferLength / barCount);
 
             for (let i = 0; i < barCount; i++) {
-                // Get frequency value (0-255)
                 const value = dataArray[i * step];
+                // Slightly taller bars for better visibility
+                const height = (value / 255) * rect.height;
                 
-                // Calculate bar height relative to canvas height
-                // Multiplier 0.8 keeps it from hitting the very top constantly
-                const height = (value / 255) * rect.height * 0.9;
-                
-                const x = i * (barWidth + 2); // 2 is the gap
+                const x = i * (barWidth + 2);
                 const y = rect.height - height;
 
-                // --- Draw the Bar (RGB Gradient) ---
-                // We use rounded top corners for a modern look
-                ctx.beginPath();
-                ctx.roundRect(x, y, barWidth, height, [4, 4, 0, 0]);
-                ctx.fill();
+                // Draw Bar (Using fillRect is faster than roundRect)
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, y, barWidth, height);
 
-                // --- Draw the Falling Cap (White) ---
-                // Logic: If current audio is louder, push cap up. If quieter, let cap fall slowly.
+                // Draw Cap
                 if (y < capsYPositionRef.current[i]) {
                     capsYPositionRef.current[i] = y;
                 } else {
                     capsYPositionRef.current[i] = Math.min(rect.height, capsYPositionRef.current[i] + capFallSpeed);
                 }
 
-                // Only draw cap if it's above the bottom
                 if (capsYPositionRef.current[i] < rect.height) {
-                    ctx.fillStyle = '#ffffff'; // White cap
-                    ctx.shadowColor = '#ffffff'; // White glow for cap
-                    ctx.fillRect(x, capsYPositionRef.current[i] - capHeight - 2, barWidth, capHeight);
-                    
-                    // Reset fill style for next bar loop (back to gradient)
-                    ctx.fillStyle = gradient;
-                    ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(x, capsYPositionRef.current[i] - capHeight - 1, barWidth, capHeight);
                 }
             }
         };
@@ -174,12 +160,17 @@ const AudioControl: React.FC<AudioControlProps> = ({
     return (
         <div className="flex flex-col w-full gap-3 bg-slate-800/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg animate-fade-in mt-2 overflow-hidden relative group">
             
+            {/* CSS-based Glow Effect (Performance Optimized) */}
+            {isPlaying && (
+                <div className="absolute inset-x-0 bottom-0 h-full w-full bg-gradient-to-t from-purple-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
+            )}
+            
             {/* Visualizer Background (Absolute) */}
             {isPlaying && analyser && (
-                <div className="absolute inset-0 opacity-100 pointer-events-none z-0 bg-black/20">
+                <div className="absolute inset-0 opacity-100 pointer-events-none z-0">
                      <canvas 
                         ref={canvasRef} 
-                        className="w-full h-full opacity-80"
+                        className="w-full h-full opacity-90 mix-blend-screen"
                     />
                 </div>
             )}
@@ -231,7 +222,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
                     
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-3">
-                         {/* Change Voice Button (New) */}
+                         {/* Change Voice Button */}
                         {onRegenerateClick && (
                             <button
                                 onClick={onRegenerateClick}
