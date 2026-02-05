@@ -126,15 +126,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                 </div>
             )}
             
-            {/* Toolbar */}
+            {/* Toolbar - ALWAYS VISIBLE NOW */}
             {canGenerateMedia && !message.imageUrl && !message.isGeneratingImage && (
-                <div className="absolute -right-4 top-1/2 -translate-y-1/2 translate-x-full opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col gap-2 pl-4">
+                <div className="mt-6 flex justify-end">
                    <button 
                         onClick={() => onRequestImage(message.id)} 
-                        className="w-10 h-10 rounded-full bg-cosmic-glass flex items-center justify-center text-cosmic-accent hover:bg-cosmic-accent hover:text-black transition-colors shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-cosmic-glass border border-white/10 hover:border-cosmic-accent/50 hover:bg-white/5 transition-all group/btn"
                         title="চিত্রিত করুন"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cosmic-purple to-cosmic-accent flex items-center justify-center text-white shadow-[0_0_10px_rgba(189,0,255,0.4)] group-hover/btn:scale-110 transition-transform">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        </div>
+                        <span className="text-xs font-bold tracking-widest text-gray-300 group-hover/btn:text-white">GENERATE VISUAL</span>
                     </button>
                 </div>
             )}

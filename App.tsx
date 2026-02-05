@@ -38,7 +38,7 @@ const STORY_SUGGESTIONS = [
 const CONTINUATION_SUGGESTIONS = [
     "হ্যাঁ, আরও গভীরে যান...",
     "তারপর কী ঘটলো?",
-    "অসাধারণ, চালিয়ে যান",
+    "গল্পটি এখানে শেষ করুন",
 ];
 
 // Helper to generate IDs safely
@@ -334,7 +334,7 @@ const App: React.FC = () => {
                 } 
             }));
 
-            // Download Logic
+            // Direct Download
             const wavBlob = audioBufferToWav(buffer);
             const url = URL.createObjectURL(wavBlob);
             const a = document.createElement('a');
@@ -399,7 +399,28 @@ const App: React.FC = () => {
         setShowVoiceModal(true);
     };
 
+    // FIXED DOWNLOAD LOGIC
     const handleRequestDownload = (messageId: string, content: string) => {
+        // If audio is already generated and available in state, download it directly
+        if (audioStates[messageId]?.audioBuffer) {
+             const buffer = audioStates[messageId].audioBuffer;
+             if(buffer) {
+                const wavBlob = audioBufferToWav(buffer);
+                const url = URL.createObjectURL(wavBlob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                // Use default voice name or generic if not tracked per message, but 'download' is enough
+                a.download = `story_${messageId.substring(0, 6)}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                return;
+             }
+        }
+
+        // Only open modal if audio buffer does NOT exist
         stopCurrentAudio();
         setPendingAudioMessage({ id: messageId, content, action: 'download' });
         setShowVoiceModal(true);
@@ -583,10 +604,10 @@ const App: React.FC = () => {
     return (
         <HashRouter>
             <div className="fixed inset-0 h-full w-full overflow-hidden flex flex-col font-sans">
-                {/* Aurora Effects */}
+                {/* Aurora Effects (Simplified) */}
                 <div className="fixed inset-0 pointer-events-none z-0">
-                     <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[60%] bg-purple-900/10 rounded-full blur-[120px] animate-aurora"></div>
-                     <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[60%] bg-blue-900/10 rounded-full blur-[120px] animate-aurora" style={{animationDelay: '5s'}}></div>
+                     <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[60%] bg-purple-900/10 rounded-full blur-[100px] animate-pulse-slow"></div>
+                     <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[60%] bg-blue-900/10 rounded-full blur-[100px] animate-pulse-slow" style={{animationDelay: '2s'}}></div>
                 </div>
 
                 <div className="relative z-10 flex flex-col h-full">

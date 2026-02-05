@@ -31,7 +31,6 @@
             animation: {
               'float': 'float 6s ease-in-out infinite',
               'shine': 'shine 8s linear infinite',
-              'aurora': 'aurora 20s ease infinite alternate',
               'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
@@ -42,10 +41,6 @@
               shine: {
                 '0%': { backgroundPosition: '200% center' },
                 '100%': { backgroundPosition: '-200% center' },
-              },
-              aurora: {
-                '0%': { opacity: '0.3', transform: 'scale(1) translate(0, 0)' },
-                '100%': { opacity: '0.6', transform: 'scale(1.2) translate(-20px, 20px)' },
               }
             },
             backdropBlur: {
@@ -67,7 +62,7 @@
       
       .font-bangla { font-family: 'Tiro Bangla', serif; }
 
-      /* Starfield Background */
+      /* Simplified Starfield for Performance */
       .stars-container {
         position: fixed;
         top: 0;
@@ -77,7 +72,7 @@
         overflow: hidden;
         z-index: -1;
         pointer-events: none;
-        background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
       }
       
       .star {
@@ -86,44 +81,37 @@
         height: 2px;
         background: white;
         border-radius: 50%;
-        opacity: 0;
+        opacity: 0.5;
         animation: twinkle var(--duration) ease-in-out infinite;
-        animation-delay: var(--delay);
       }
 
       @keyframes twinkle {
-        0% { opacity: 0; transform: scale(0.5); }
-        50% { opacity: 0.8; transform: scale(1.2); box-shadow: 0 0 4px white; }
-        100% { opacity: 0; transform: scale(0.5); }
+        0% { opacity: 0.3; }
+        50% { opacity: 1; }
+        100% { opacity: 0.3; }
       }
 
       /* Advanced Glassmorphism */
       .cosmic-glass {
         background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.05);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
       }
       
       .cosmic-card-user {
-        background: linear-gradient(135deg, rgba(0, 243, 255, 0.1) 0%, rgba(0, 243, 255, 0.01) 100%);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 243, 255, 0.2);
-        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        background: rgba(0, 243, 255, 0.05);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 243, 255, 0.1);
       }
 
       .cosmic-card-model {
-        background: linear-gradient(135deg, rgba(189, 0, 255, 0.05) 0%, rgba(0, 0, 0, 0.4) 100%);
-        backdrop-filter: blur(20px);
-        border-left: 3px solid #bd00ff;
+        background: rgba(20, 20, 30, 0.6);
+        backdrop-filter: blur(12px);
+        border-left: 2px solid #bd00ff;
         border-top: 1px solid rgba(255,255,255,0.05);
         border-right: 1px solid rgba(255,255,255,0.05);
         border-bottom: 1px solid rgba(255,255,255,0.05);
-      }
-
-      .text-glow {
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
       }
 
       /* Scrollbar */
@@ -131,7 +119,6 @@
       .custom-scrollbar::-webkit-scrollbar { width: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
       .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
 
       /* Range Slider */
       input[type=range] { -webkit-appearance: none; background: transparent; }
@@ -141,7 +128,7 @@
         width: 16px;
         border-radius: 50%;
         background: #00f3ff;
-        box-shadow: 0 0 10px #00f3ff;
+        box-shadow: 0 0 5px #00f3ff;
         margin-top: -6px;
         cursor: pointer;
       }
@@ -174,16 +161,15 @@
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
-        // Generate dynamic stars
+        // Reduced stars for performance (100 -> 25)
         const container = document.createElement('div');
         container.className = 'stars-container';
-        for(let i=0; i<100; i++) {
+        for(let i=0; i<25; i++) {
             const star = document.createElement('div');
             star.className = 'star';
             star.style.left = Math.random() * 100 + '%';
             star.style.top = Math.random() * 100 + '%';
-            star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
-            star.style.setProperty('--delay', (Math.random() * 5) + 's');
+            star.style.setProperty('--duration', (Math.random() * 5 + 3) + 's');
             container.appendChild(star);
         }
         document.body.appendChild(container);
