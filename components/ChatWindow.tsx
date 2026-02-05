@@ -1,5 +1,5 @@
 
-import React, { useRef, useLayoutEffect } from 'react';
+import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { Message } from '../types';
 import ChatMessage from './ChatMessage';
 import SuggestionChips from './SuggestionChips';
@@ -41,19 +41,36 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     onRegenerateVoice
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
-  useLayoutEffect(() => {
+  // Check if user is near bottom on scroll
+  const handleScroll = () => {
     if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      // If user is within 100px of the bottom, consider them "at the bottom"
+      const bottomThreshold = 100;
+      const isBottom = scrollHeight - scrollTop - clientHeight <= bottomThreshold;
+      setIsNearBottom(isBottom);
+    }
+  };
+
+  // Only auto-scroll if the user was already near the bottom
+  useLayoutEffect(() => {
+    if (isNearBottom && scrollRef.current) {
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth',
       });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isNearBottom]);
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6">
-      <div className="flex flex-col">
+    <div 
+        ref={scrollRef} 
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar scroll-smooth"
+    >
+      <div className="flex flex-col pb-20"> {/* Added padding bottom for floating input */}
         {messages.map((msg, index) => (
           <ChatMessage 
             key={msg.id}

@@ -37,6 +37,7 @@ const AudioControl: React.FC<AudioControlProps> = ({
   onSeek,
   onSkip,
   onRegenerateClick,
+  onDownloadClick,
   analyser
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -143,15 +144,20 @@ const AudioControl: React.FC<AudioControlProps> = ({
 
              {/* Actions */}
              <div className="flex items-center gap-2">
-                 <button onClick={() => onSkip(-10)} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10">
+                 <button onClick={() => onSkip(-10)} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10" title="১০ সেকেন্ড পিছিয়ে যান">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/></svg>
                  </button>
-                 <button onClick={() => onSkip(10)} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10">
+                 <button onClick={() => onSkip(10)} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10" title="১০ সেকেন্ড এগিয়ে যান">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
                  </button>
                  {onRegenerateClick && (
-                    <button onClick={onRegenerateClick} className="text-amber-400 hover:text-amber-300 p-1.5 rounded-full hover:bg-amber-500/10">
+                    <button onClick={onRegenerateClick} className="text-amber-400 hover:text-amber-300 p-1.5 rounded-full hover:bg-amber-500/10" title="কণ্ঠস্বর পরিবর্তন করুন">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                 )}
+                 {onDownloadClick && (
+                    <button onClick={onDownloadClick} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10" title="অডিও ডাউনলোড করুন">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     </button>
                  )}
              </div>

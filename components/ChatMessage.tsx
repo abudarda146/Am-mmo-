@@ -43,7 +43,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
   // iOS 17 Style Bubbles
   const bubbleClasses = isModel
-    ? 'bg-[#1c1c1e]/80 backdrop-blur-xl border border-white/5 text-gray-100 rounded-[1.5rem] rounded-tl-sm'
+    ? 'bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 text-gray-100 rounded-[1.5rem] rounded-tl-sm'
     : 'bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-[1.5rem] rounded-tr-sm shadow-lg shadow-orange-500/20';
   
   const handlePlayPauseClick = () => onPlayPause(message.id, message.content);
@@ -52,10 +52,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const canGenerateMedia = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
 
   return (
-    <div className={`w-full max-w-3xl mx-auto flex flex-col my-6 animate-slide-up ${isModel ? 'items-start' : 'items-end'}`}>
+    <div className={`w-full max-w-3xl mx-auto flex flex-col my-4 animate-slide-up ${isModel ? 'items-start' : 'items-end'}`}>
       
-      {/* Avatar & Name (Optional, good for group chat feel) */}
-      <div className={`flex items-center gap-3 mb-2 px-2 ${isModel ? 'flex-row' : 'flex-row-reverse'}`}>
+      {/* Avatar & Name */}
+      <div className={`flex items-center gap-3 mb-1 px-2 ${isModel ? 'flex-row' : 'flex-row-reverse'}`}>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm ${isModel ? 'bg-gray-800 text-amber-500' : 'bg-gray-700 text-gray-300'}`}>
             {isModel ? '🤖' : '👤'}
         </div>
@@ -66,16 +66,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             
             {/* Media Section (Images) */}
             {(message.imageUrl || message.isGeneratingImage) && (
-                <div className="mb-4 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+                <div className="mb-4 rounded-2xl overflow-hidden shadow-2xl border border-white/10 w-full">
                     {message.isGeneratingImage ? (
                         <div className="w-full aspect-video bg-gray-800/50 flex flex-col items-center justify-center animate-pulse">
                             <LoadingSpinner />
+                            <span className="text-xs text-gray-400 mt-2">ছবি আঁকা হচ্ছে...</span>
                         </div>
                     ) : message.imageUrl ? (
-                        <Link to={`/image/${message.id}`} className="block relative group/image">
+                        <Link to={`/image/${message.id}`} className="block relative group/image w-full">
                             <img src={message.imageUrl} alt="Generated" className="w-full h-auto block" />
                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity">
-                                <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white">View</span>
+                                <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white">বড় করে দেখুন</span>
                             </div>
                         </Link>
                     ) : null}
@@ -118,14 +119,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                 </div>
             )}
             
-             {/* Context Menu / Actions (Generate Image) */}
-             {canGenerateMedia && !message.imageUrl && !message.isGeneratingImage && (
-                <div className="absolute -bottom-8 left-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+            {/* Toolbar for Model Messages (Image Generation) */}
+            {canGenerateMedia && !message.imageUrl && !message.isGeneratingImage && (
+                <div className="mt-4 pt-2 border-t border-white/5 flex gap-2">
                    <button 
                         onClick={() => onRequestImage(message.id)} 
-                        className="bg-gray-800/80 backdrop-blur text-xs px-3 py-1.5 rounded-full text-amber-400 hover:bg-gray-700 border border-gray-700"
+                        className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-xs px-3 py-2 rounded-lg text-amber-400 transition-colors border border-white/5"
                     >
-                        🎨 ছবি আঁকুন
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        ছবির দৃশ্য তৈরি করুন
                     </button>
                 </div>
             )}
@@ -136,9 +140,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           <div className="flex flex-wrap gap-2 mt-2 px-2 animate-scale-in justify-end">
               <button
                   onClick={() => onSuggestionClick("হ্যাঁ, পরবর্তী অংশ বলুন")}
-                  className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-amber-400 rounded-full text-sm font-medium transition-colors border border-white/5"
+                  className="px-5 py-2.5 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-amber-400 rounded-full text-sm font-medium transition-colors border border-white/10 shadow-lg"
               >
-                  চালিয়ে যান →
+                  গল্প চালিয়ে যান →
               </button>
           </div>
       )}
