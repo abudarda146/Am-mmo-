@@ -14,9 +14,8 @@ interface MainChatViewProps {
   handleSendMessage: (message: string) => void;
   audioStates: Record<string, AudioState>;
   handlePlayPause: (messageId: string, content: string) => void;
-  handleDownloadAudio: (messageId: string) => void;
+  handleDownloadAudio: (messageId: string, content: string) => void;
   handleRequestImage: (messageId: string) => void;
-  // Removed unused video/slideshow handlers
   handleRequestVideo: (messageId: string) => void;
   handleRequestSlideshow: (messageId: string) => void;
   volume: number;

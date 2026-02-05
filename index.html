@@ -9,48 +9,48 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Cinzel:wght@400;600;700&family=Quicksand:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
               serif: ['"Tiro Bangla"', 'serif'],
-              sans: ['"Inter"', 'system-ui', 'sans-serif'],
+              display: ['"Cinzel"', 'serif'],
+              sans: ['"Quicksand"', 'sans-serif'],
             },
             colors: {
-              ios: {
-                bg: '#000000',
-                surface: '#1c1c1e',
-                blue: '#0a84ff',
-                amber: '#ffb340',
-                gray: '#8e8e93',
-                separator: 'rgba(255, 255, 255, 0.15)',
+              cosmic: {
+                dark: '#050511',
+                void: '#000000',
+                gold: '#ffd700',
+                accent: '#00f3ff',
+                purple: '#bd00ff',
               }
             },
             animation: {
-              'blob': 'blob 10s infinite',
-              'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-              'scale-in': 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+              'float': 'float 6s ease-in-out infinite',
+              'shine': 'shine 8s linear infinite',
+              'aurora': 'aurora 20s ease infinite alternate',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
-              blob: {
-                '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
               },
-              slideUp: {
-                '0%': { transform: 'translateY(20px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
+              shine: {
+                '0%': { backgroundPosition: '200% center' },
+                '100%': { backgroundPosition: '-200% center' },
               },
-              scaleIn: {
-                '0%': { transform: 'scale(0.9)', opacity: '0' },
-                '100%': { transform: 'scale(1)', opacity: '1' },
+              aurora: {
+                '0%': { opacity: '0.3', transform: 'scale(1) translate(0, 0)' },
+                '100%': { opacity: '0.6', transform: 'scale(1.2) translate(-20px, 20px)' },
               }
             },
             backdropBlur: {
               'xs': '2px',
+              '3xl': '60px',
             }
           }
         }
@@ -58,76 +58,98 @@
     </script>
     <style>
       body {
-        font-family: 'Inter', sans-serif; /* UI Font */
-        background-color: #000000;
-        color: #ffffff;
+        font-family: 'Quicksand', sans-serif;
+        background-color: #050511;
+        color: #e2e8f0;
         -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
         overscroll-behavior-y: none;
       }
       
-      /* Bangla text uses serif */
-      .font-bangla {
-        font-family: 'Tiro Bangla', serif;
-      }
+      .font-bangla { font-family: 'Tiro Bangla', serif; }
 
-      /* Hide Scrollbar for cleaner UI */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-
-      /* Custom Thin Scrollbar for content */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-      }
-
-      /* Glassmorphism Utilities */
-      .ios-glass {
-        background: rgba(30, 30, 30, 0.6);
-        backdrop-filter: blur(20px) saturate(180%);
-        -webkit-backdrop-filter: blur(20px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+      /* Starfield Background */
+      .stars-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: -1;
+        pointer-events: none;
+        background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
       }
       
-      .ios-btn {
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      .ios-btn:active {
-        transform: scale(0.96);
-        opacity: 0.8;
+      .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: white;
+        border-radius: 50%;
+        opacity: 0;
+        animation: twinkle var(--duration) ease-in-out infinite;
+        animation-delay: var(--delay);
       }
 
-      /* Range Slider iOS Style */
-      input[type=range] {
-        -webkit-appearance: none;
-        background: transparent;
+      @keyframes twinkle {
+        0% { opacity: 0; transform: scale(0.5); }
+        50% { opacity: 0.8; transform: scale(1.2); box-shadow: 0 0 4px white; }
+        100% { opacity: 0; transform: scale(0.5); }
       }
+
+      /* Advanced Glassmorphism */
+      .cosmic-glass {
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+      
+      .cosmic-card-user {
+        background: linear-gradient(135deg, rgba(0, 243, 255, 0.1) 0%, rgba(0, 243, 255, 0.01) 100%);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 243, 255, 0.2);
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+      }
+
+      .cosmic-card-model {
+        background: linear-gradient(135deg, rgba(189, 0, 255, 0.05) 0%, rgba(0, 0, 0, 0.4) 100%);
+        backdrop-filter: blur(20px);
+        border-left: 3px solid #bd00ff;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        border-right: 1px solid rgba(255,255,255,0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+      }
+
+      .text-glow {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+      }
+
+      /* Scrollbar */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+      /* Range Slider */
+      input[type=range] { -webkit-appearance: none; background: transparent; }
       input[type=range]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        height: 20px;
-        width: 20px;
+        height: 16px;
+        width: 16px;
         border-radius: 50%;
-        background: #ffffff;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        margin-top: -8px;
+        background: #00f3ff;
+        box-shadow: 0 0 10px #00f3ff;
+        margin-top: -6px;
         cursor: pointer;
       }
       input[type=range]::-webkit-slider-runnable-track {
         width: 100%;
         height: 4px;
         cursor: pointer;
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.1);
         border-radius: 2px;
       }
     </style>
@@ -148,8 +170,23 @@
 }
 </script>
 </head>
-  <body class="bg-black text-white h-full w-full overflow-hidden">
+  <body class="bg-cosmic-void text-white h-full w-full overflow-hidden selection:bg-purple-500/30 selection:text-white">
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+        // Generate dynamic stars
+        const container = document.createElement('div');
+        container.className = 'stars-container';
+        for(let i=0; i<100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+            star.style.setProperty('--delay', (Math.random() * 5) + 's');
+            container.appendChild(star);
+        }
+        document.body.appendChild(container);
+    </script>
   </body>
 </html>

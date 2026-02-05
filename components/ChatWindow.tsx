@@ -12,7 +12,7 @@ interface ChatWindowProps {
   onSuggestionClick: (suggestion: string) => void;
   audioStates: Record<string, AudioState>;
   onPlayPause: (messageId: string, content: string) => void;
-  onDownloadAudio: (messageId: string) => void;
+  onDownloadAudio: (messageId: string, content: string) => void;
   onRequestImage: (messageId: string) => void;
   onRequestVideo: (messageId: string) => void;
   onRequestSlideshow: (messageId: string) => void;

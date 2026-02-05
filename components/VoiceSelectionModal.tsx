@@ -5,6 +5,7 @@ import { decode, decodeAudioData } from '../utils/audioUtils';
 
 interface VoiceSelectionModalProps {
   isOpen: boolean;
+  mode?: 'play' | 'download';
   onClose: () => void;
   onConfirm: (voiceName: string) => void;
 }
@@ -17,10 +18,9 @@ const VOICES = [
   { id: 'Puck', label: 'পুরুষ (স্বাভাবিক)', description: 'সাবলীল এবং কথোপকথনধর্মী', gender: 'Male' },
 ];
 
-// Neutral and professional greeting
 const DEMO_TEXT = "হ্যালো! আমি আপনার ব্যক্তিগত গল্পকার। আপনার পছন্দের গল্পটি পড়ে শোনানোর জন্য আমি প্রস্তুত।";
 
-const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, onClose, onConfirm }) => {
+const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, mode = 'play', onClose, onConfirm }) => {
   const [playingDemo, setPlayingDemo] = useState<string | null>(null);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>('Kore'); // Default selection
@@ -65,6 +65,8 @@ const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, onClo
         setLoadingDemo(null);
     }
   };
+
+  const actionButtonText = mode === 'download' ? "জেনারেট ও ডাউনলোড করুন" : "অডিও তৈরি করুন";
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4">
@@ -156,7 +158,7 @@ const VoiceSelectionModal: React.FC<VoiceSelectionModalProps> = ({ isOpen, onClo
                 onClick={() => onConfirm(selectedVoice)}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-white font-bold hover:from-amber-500 hover:to-amber-400 shadow-lg shadow-amber-500/20 transition-all active:scale-95"
             >
-                অডিও তৈরি করুন
+                {actionButtonText}
             </button>
         </div>
       </div>

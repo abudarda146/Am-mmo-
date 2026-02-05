@@ -25,20 +25,20 @@ import {
 } from './services/firebaseService';
 import { decode, decodeAudioData, audioBufferToWav } from './utils/audioUtils';
 
-const INITIAL_MESSAGE_CONTENT = 'শুভেচ্ছা! আমি আপনার ব্যক্তিগত গল্পকার। আমি যেকোনো বিষয় নিয়ে আপনাকে গল্প শোনাতে পারি। আপনি কোন গল্পটি শুনতে চান?';
+const INITIAL_MESSAGE_CONTENT = 'মহাবিশ্বের অসীম আখ্যান থেকে আজ কোন গল্পটি শুনতে চান?';
 const INITIAL_MESSAGE: Message = { id: 'initial-message', role: Role.MODEL, content: INITIAL_MESSAGE_CONTENT, timestamp: Date.now() };
 
 const STORY_SUGGESTIONS = [
-    "আলাদিনের আশ্চর্য প্রদীপের গল্প",
-    "হ্যামেলিনের বাঁশিওয়ালার কাহিনী",
-    "ঈশপের একটি ছোট গল্প বলুন",
-    "হ্যারি পটারের সারসংক্ষেপ",
+    "রহস্যময় নক্ষত্রের গল্প",
+    "হারানো সভ্যতার উপকথা",
+    "ভবিষ্যতের পৃথিবীর কাহিনী",
+    "ধ্রুপদী সাহিত্যের পুনর্নির্মাণ",
 ];
 
 const CONTINUATION_SUGGESTIONS = [
-    "হ্যাঁ, পরবর্তী অংশ বলুন",
-    "অবশ্যই, আমি আগ্রহী",
-    "এরপর কী হলো?",
+    "হ্যাঁ, আরও গভীরে যান...",
+    "তারপর কী ঘটলো?",
+    "অসাধারণ, চালিয়ে যান",
 ];
 
 // Helper to generate IDs safely
@@ -51,7 +51,7 @@ const App: React.FC = () => {
     // Sessions and State
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default for cleaner look
     
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -64,7 +64,7 @@ const App: React.FC = () => {
     
     // Voice Modal State
     const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
-    const [pendingAudioMessage, setPendingAudioMessage] = useState<{id: string, content: string} | null>(null);
+    const [pendingAudioMessage, setPendingAudioMessage] = useState<{id: string, content: string, action: 'play' | 'download'} | null>(null);
     
     const chat = useRef<Chat | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -113,7 +113,7 @@ const App: React.FC = () => {
                         chat.current = initChat(storyLength, []);
                     }
                 } catch (e) {
-                    setError("চ্যাট হিস্ট্রি লোড করতে সমস্যা হয়েছে।");
+                    setError("স্মৃতি লোড করতে সমস্যা হয়েছে।");
                     setMessages([INITIAL_MESSAGE]);
                 } finally {
                     setIsLoading(false);
@@ -310,6 +310,52 @@ const App: React.FC = () => {
         }
     };
 
+    const generateAndDownloadAudio = async (messageId: string, content: string, voiceName: string) => {
+        setAudioStates(prev => ({
+            ...prev,
+            [messageId]: { ...prev[messageId], isLoading: true }
+        }));
+
+        try {
+            const base64Audio = await generateStoryAudio(content, voiceName);
+            
+            const audioData = decode(base64Audio);
+            const context = getAudioContext();
+            const buffer = await decodeAudioData(audioData, context, 24000, 1);
+            
+            // Update state so it can also be played if user wants
+            setAudioStates(prev => ({ 
+                ...prev, 
+                [messageId]: { 
+                    ...prev[messageId], 
+                    isLoading: false, 
+                    audioBuffer: buffer,
+                    duration: buffer.duration 
+                } 
+            }));
+
+            // Download Logic
+            const wavBlob = audioBufferToWav(buffer);
+            const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `story_${voiceName}_${messageId.substring(0, 6)}.wav`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (err) {
+            console.error("Download generation failed:", err);
+            setError("অডিও ডাউনলোড করতে সমস্যা হয়েছে।");
+            setAudioStates(prev => ({ 
+                ...prev, 
+                [messageId]: { ...prev[messageId], isLoading: false, error: true } 
+            }));
+        }
+    };
+
     const handlePlayPause = async (messageId: string, content: string) => {
         const currentState = audioStates[messageId];
 
@@ -329,42 +375,34 @@ const App: React.FC = () => {
         }
 
         stopCurrentAudio();
-        setPendingAudioMessage({ id: messageId, content });
+        setPendingAudioMessage({ id: messageId, content, action: 'play' });
         setShowVoiceModal(true);
     };
 
     const handleVoiceConfirm = (voiceName: string) => {
         setShowVoiceModal(false);
         if (pendingAudioMessage) {
-            generateAndPlayAudio(pendingAudioMessage.id, pendingAudioMessage.content, voiceName);
-            setSelectedVoice(voiceName);
+            const { id, content, action } = pendingAudioMessage;
+            if (action === 'play') {
+                generateAndPlayAudio(id, content, voiceName);
+                setSelectedVoice(voiceName);
+            } else {
+                generateAndDownloadAudio(id, content, voiceName);
+            }
         }
         setPendingAudioMessage(null);
     };
     
     const handleRegenerateVoice = (messageId: string, content: string) => {
         stopCurrentAudio();
-        setPendingAudioMessage({ id: messageId, content });
+        setPendingAudioMessage({ id: messageId, content, action: 'play' });
         setShowVoiceModal(true);
     };
 
-    const handleDownloadAudio = async (messageId: string) => {
-        const state = audioStates[messageId];
-        if (!state?.audioBuffer) return;
-        try {
-            const wavBlob = audioBufferToWav(state.audioBuffer);
-            const url = URL.createObjectURL(wavBlob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `story_part_${messageId}.wav`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (err) {
-            setError("অডিও ফাইল ডাউনলোড করতে ব্যর্থ।");
-        }
+    const handleRequestDownload = (messageId: string, content: string) => {
+        stopCurrentAudio();
+        setPendingAudioMessage({ id: messageId, content, action: 'download' });
+        setShowVoiceModal(true);
     };
     
     const handleVolumeChange = (newVolume: number) => {
@@ -469,7 +507,7 @@ const App: React.FC = () => {
 
         } catch (e) {
             console.error("Gemini API Error:", e);
-            const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
+            const errorMessage = "দুঃখিত, সংযোগে বিঘ্ন ঘটেছে।";
             setError(errorMessage);
             setIsLoading(false);
             chat.current = null;
@@ -477,7 +515,7 @@ const App: React.FC = () => {
     };
 
     const handleDeleteSession = async (sessionId: string) => {
-        if (!confirm("আপনি কি এই চ্যাট হিস্ট্রি মুছে ফেলতে চান?")) return;
+        if (!confirm("আপনি কি এই স্মৃতি মুছে ফেলতে চান?")) return;
         try {
             await deleteChatSession(sessionId);
             setSessions(prev => prev.filter(s => s.id !== sessionId));
@@ -485,7 +523,7 @@ const App: React.FC = () => {
                 startNewChat();
             }
         } catch (e) {
-            setError("চ্যাট মুছতে ব্যর্থ হয়েছে।");
+            setError("মুছতে ব্যর্থ হয়েছে।");
         }
     };
 
@@ -500,7 +538,7 @@ const App: React.FC = () => {
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, imageUrl, isGeneratingImage: false } : m));
             await saveMessage(currentSessionId, { ...message, imageUrl });
         } catch (imgErr) {
-            setError("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
+            setError("দৃশ্যকল্প তৈরি করা যায়নি।");
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: false } : m));
         }
     };
@@ -512,7 +550,7 @@ const App: React.FC = () => {
             const prompt = await generateRandomStoryPrompt();
             if (prompt) await handleSendMessage(prompt);
         } catch (e) {
-            setError("দৈবচয়িত গল্প তৈরি করতে ব্যর্থ।");
+            setError("দৈবচয়িত গল্প তৈরি ব্যর্থ।");
         } finally {
             setIsGeneratingPrompt(false);
         }
@@ -534,19 +572,21 @@ const App: React.FC = () => {
     if (isAuthChecking) {
         return (
             <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
-                <div className="w-8 h-8 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
+                <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-t-2 border-b-2 border-cosmic-accent animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-cosmic-accent animate-pulse">...</div>
+                </div>
             </div>
         );
     }
 
     return (
         <HashRouter>
-            <div className="fixed inset-0 h-full w-full bg-black text-white overflow-hidden flex flex-col font-sans">
-                {/* Background Blobs (Aurora Effect) */}
-                <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-                    <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-900/30 rounded-full blur-[100px] animate-blob"></div>
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-900/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
-                    <div className="absolute top-[30%] left-[30%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
+            <div className="fixed inset-0 h-full w-full overflow-hidden flex flex-col font-sans">
+                {/* Aurora Effects */}
+                <div className="fixed inset-0 pointer-events-none z-0">
+                     <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[60%] bg-purple-900/10 rounded-full blur-[120px] animate-aurora"></div>
+                     <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[60%] bg-blue-900/10 rounded-full blur-[120px] animate-aurora" style={{animationDelay: '5s'}}></div>
                 </div>
 
                 <div className="relative z-10 flex flex-col h-full">
@@ -584,7 +624,7 @@ const App: React.FC = () => {
                                                 handleSendMessage={handleSendMessage}
                                                 audioStates={audioStates}
                                                 handlePlayPause={handlePlayPause}
-                                                handleDownloadAudio={handleDownloadAudio}
+                                                handleDownloadAudio={handleRequestDownload}
                                                 handleRequestImage={handleRequestImage}
                                                 handleRequestVideo={() => {}} 
                                                 handleRequestSlideshow={() => {}}
@@ -620,6 +660,7 @@ const App: React.FC = () => {
 
                     <VoiceSelectionModal 
                         isOpen={showVoiceModal}
+                        mode={pendingAudioMessage?.action || 'play'}
                         onClose={() => {
                             setShowVoiceModal(false);
                             setPendingAudioMessage(null);
