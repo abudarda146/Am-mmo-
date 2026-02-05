@@ -109,7 +109,6 @@ const App: React.FC = () => {
                         setMessages(sessionMessages);
                         chat.current = initChat(storyLength, sessionMessages);
                     } else {
-                        // If no messages found (should not happen for valid session), reset
                         setMessages([INITIAL_MESSAGE]);
                         chat.current = initChat(storyLength, []);
                     }
@@ -136,9 +135,8 @@ const App: React.FC = () => {
             gainNodeRef.current = gainNode;
             
             const analyser = context.createAnalyser();
-            // Increased FFT size for better visualization resolution
             analyser.fftSize = 1024;
-            analyser.smoothingTimeConstant = 0.85; // Smoother transitions
+            analyser.smoothingTimeConstant = 0.85;
             analyserNodeRef.current = analyser;
         }
         return audioContextRef.current;
@@ -273,8 +271,7 @@ const App: React.FC = () => {
         setAudioStates({});
         setError(null);
         chat.current = initChat(storyLength, []);
-        // Close sidebar on mobile when starting new chat
-        if (window.innerWidth < 768) setIsSidebarOpen(false);
+        if (window.innerWidth < 1024) setIsSidebarOpen(false);
     }, [stopCurrentAudio, storyLength, user]);
 
     useEffect(() => {
@@ -293,7 +290,6 @@ const App: React.FC = () => {
     };
 
     const generateAndPlayAudio = async (messageId: string, content: string, voiceName: string) => {
-         // Reset state for new generation
          setAudioStates(prev => ({
             ...prev,
             [messageId]: { ...prev[messageId], isLoading: true, isBuffering: false, error: false, audioBuffer: null, duration: 0, currentTime: 0, progress: 0 }
@@ -317,26 +313,21 @@ const App: React.FC = () => {
     const handlePlayPause = async (messageId: string, content: string) => {
         const currentState = audioStates[messageId];
 
-        // If playing, pause
         if (currentState?.isPlaying) {
             pauseAudio();
             return;
         }
 
-        // If another audio is playing, stop it
         if(currentlyPlayingIdRef.current && currentlyPlayingIdRef.current !== messageId) {
             stopCurrentAudio();
         }
 
-        // If we have buffer and it's paused, resume
         let buffer = currentState?.audioBuffer;
         if (buffer && !currentState.isPlaying) {
             playAudio(messageId, buffer, pausedAtRef.current);
             return;
         }
 
-        // If no buffer, or explicit request to generate, we need to ask for voice FIRST
-        // This is where we open the modal. Stop current audio first to avoid overlap.
         stopCurrentAudio();
         setPendingAudioMessage({ id: messageId, content });
         setShowVoiceModal(true);
@@ -346,7 +337,6 @@ const App: React.FC = () => {
         setShowVoiceModal(false);
         if (pendingAudioMessage) {
             generateAndPlayAudio(pendingAudioMessage.id, pendingAudioMessage.content, voiceName);
-            // Optionally update selectedVoice for global settings sync (optional)
             setSelectedVoice(voiceName);
         }
         setPendingAudioMessage(null);
@@ -409,29 +399,17 @@ const App: React.FC = () => {
         setError(null);
         
         let activeSessionId = currentSessionId;
-        let isNewSession = false;
-
-        // If it's a new session, create one
+        
         if (!activeSessionId) {
-            isNewSession = true;
             activeSessionId = generateId();
             setCurrentSessionId(activeSessionId);
             const title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
-            
-            // Save new session
             await saveChatSession(user.uid, activeSessionId, title);
-            
-            // Refresh sessions list
             const updatedSessions = await getChatSessions(user.uid);
             setSessions(updatedSessions);
-            
-            // Initialize chat
             chat.current = initChat(storyLength, []);
         } else {
-            // Update existing session time
             await updateChatSessionTime(activeSessionId);
-            
-             // Ensure chat is initialized if user refreshed or navigated back
             if (!chat.current) {
                  chat.current = initChat(storyLength, messages);
             }
@@ -440,7 +418,6 @@ const App: React.FC = () => {
         const userMessage: Message = { id: generateId(), role: Role.USER, content: userInput, timestamp: Date.now() };
         setMessages(prev => [...prev, userMessage]);
         
-        // Save user message
         await saveMessage(activeSessionId, userMessage);
 
         try {
@@ -485,20 +462,16 @@ const App: React.FC = () => {
                 }
             }
             
-            // Save model response to Firestore
             await saveMessage(activeSessionId, modelMessage);
             setIsLoading(false);
-            
-            // Re-fetch sessions to update order if needed (since timestamp changed)
-             const updatedSessions = await getChatSessions(user.uid);
-             setSessions(updatedSessions);
+            const updatedSessions = await getChatSessions(user.uid);
+            setSessions(updatedSessions);
 
         } catch (e) {
-            console.error("Gemini API Error:", e); // Log full error for debugging
+            console.error("Gemini API Error:", e);
             const errorMessage = "দুঃখিত, একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
             setError(errorMessage);
             setIsLoading(false);
-            // Critical fix: Reset chat instance to recover from error state
             chat.current = null;
         }
     };
@@ -520,14 +493,11 @@ const App: React.FC = () => {
         const message = messages.find(m => m.id === messageId);
         if (!message || !message.content || !currentSessionId) return;
         
-        // Indicate "searching" state instead of generating
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isGeneratingImage: true } : m));
         
         try {
-            // Now calls search, not imagen
             const imageUrl = await generateImageForStory(message.content);
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, imageUrl, isGeneratingImage: false } : m));
-            // Update message in Firestore
             await saveMessage(currentSessionId, { ...message, imageUrl });
         } catch (imgErr) {
             setError("উপযুক্ত ছবি খুঁজে পাওয়া যায়নি।");
@@ -563,94 +533,100 @@ const App: React.FC = () => {
     
     if (isAuthChecking) {
         return (
-            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
-                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+                <div className="w-8 h-8 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
             </div>
         );
     }
 
     return (
         <HashRouter>
-            {/* Updated Main Container: Fixed full screen with dynamic viewport height */}
-            <div className="fixed inset-0 h-[100dvh] w-full bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] flex flex-col overflow-hidden">
-                <Header 
-                    user={user} 
-                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-                />
-                
-                <div className="flex-1 flex overflow-hidden relative">
-                    {user && (
-                        <Sidebar 
-                            sessions={sessions}
-                            currentSessionId={currentSessionId}
-                            onSelectSession={setCurrentSessionId}
-                            onNewChat={startNewChat}
-                            onDeleteSession={handleDeleteSession}
-                            isOpen={isSidebarOpen}
-                            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-                        />
-                    )}
-
-                    <div className="flex-1 flex flex-col min-w-0 bg-slate-900/40 relative h-full">
-                        {!user ? (
-                        <AuthView />
-                        ) : (
-                            <Routes>
-                                <Route
-                                    path="/"
-                                    element={
-                                        <MainChatView
-                                            messages={messages}
-                                            isLoading={isLoading}
-                                            isGeneratingPrompt={isGeneratingPrompt}
-                                            getSuggestions={getSuggestions}
-                                            handleSendMessage={handleSendMessage}
-                                            audioStates={audioStates}
-                                            handlePlayPause={handlePlayPause}
-                                            handleDownloadAudio={handleDownloadAudio}
-                                            handleRequestImage={handleRequestImage}
-                                            // Removing handlers for video/slideshow
-                                            handleRequestVideo={() => {}} 
-                                            handleRequestSlideshow={() => {}}
-                                            volume={volume}
-                                            handleVolumeChange={handleVolumeChange}
-                                            handleSeek={handleSeek}
-                                            analyser={analyserNodeRef.current}
-                                            error={error}
-                                            initializeChatSession={startNewChat}
-                                            handleRandomStory={handleRandomStory}
-                                            handleRegenerateVoice={handleRegenerateVoice}
-                                        />
-                                    }
-                                />
-                                <Route
-                                    path="/settings"
-                                    element={
-                                        <SettingsView
-                                            storyLength={storyLength}
-                                            onLengthChange={handleLengthChange}
-                                            selectedVoice={selectedVoice}
-                                            onVoiceChange={handleVoiceChange}
-                                            isDisabled={combinedIsLoading}
-                                        />
-                                    }
-                                />
-                                <Route path="/image/:messageId" element={<ImageView messages={messages} />} />
-                                <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                        )}
-                    </div>
+            <div className="fixed inset-0 h-full w-full bg-black text-white overflow-hidden flex flex-col font-sans">
+                {/* Background Blobs (Aurora Effect) */}
+                <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
+                    <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-900/30 rounded-full blur-[100px] animate-blob"></div>
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-900/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-[30%] left-[30%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
                 </div>
 
-                {/* Voice Selection Modal */}
-                <VoiceSelectionModal 
-                    isOpen={showVoiceModal}
-                    onClose={() => {
-                        setShowVoiceModal(false);
-                        setPendingAudioMessage(null);
-                    }}
-                    onConfirm={handleVoiceConfirm}
-                />
+                <div className="relative z-10 flex flex-col h-full">
+                    <Header 
+                        user={user} 
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+                    />
+                    
+                    <div className="flex-1 flex overflow-hidden relative">
+                        {user && (
+                            <Sidebar 
+                                sessions={sessions}
+                                currentSessionId={currentSessionId}
+                                onSelectSession={setCurrentSessionId}
+                                onNewChat={startNewChat}
+                                onDeleteSession={handleDeleteSession}
+                                isOpen={isSidebarOpen}
+                                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+                            />
+                        )}
+
+                        <div className="flex-1 flex flex-col min-w-0 relative h-full">
+                            {!user ? (
+                            <AuthView />
+                            ) : (
+                                <Routes>
+                                    <Route
+                                        path="/"
+                                        element={
+                                            <MainChatView
+                                                messages={messages}
+                                                isLoading={isLoading}
+                                                isGeneratingPrompt={isGeneratingPrompt}
+                                                getSuggestions={getSuggestions}
+                                                handleSendMessage={handleSendMessage}
+                                                audioStates={audioStates}
+                                                handlePlayPause={handlePlayPause}
+                                                handleDownloadAudio={handleDownloadAudio}
+                                                handleRequestImage={handleRequestImage}
+                                                handleRequestVideo={() => {}} 
+                                                handleRequestSlideshow={() => {}}
+                                                volume={volume}
+                                                handleVolumeChange={handleVolumeChange}
+                                                handleSeek={handleSeek}
+                                                analyser={analyserNodeRef.current}
+                                                error={error}
+                                                initializeChatSession={startNewChat}
+                                                handleRandomStory={handleRandomStory}
+                                                handleRegenerateVoice={handleRegenerateVoice}
+                                            />
+                                        }
+                                    />
+                                    <Route
+                                        path="/settings"
+                                        element={
+                                            <SettingsView
+                                                storyLength={storyLength}
+                                                onLengthChange={handleLengthChange}
+                                                selectedVoice={selectedVoice}
+                                                onVoiceChange={handleVoiceChange}
+                                                isDisabled={combinedIsLoading}
+                                            />
+                                        }
+                                    />
+                                    <Route path="/image/:messageId" element={<ImageView messages={messages} />} />
+                                    <Route path="*" element={<Navigate to="/" replace />} />
+                                </Routes>
+                            )}
+                        </div>
+                    </div>
+
+                    <VoiceSelectionModal 
+                        isOpen={showVoiceModal}
+                        onClose={() => {
+                            setShowVoiceModal(false);
+                            setPendingAudioMessage(null);
+                        }}
+                        onConfirm={handleVoiceConfirm}
+                    />
+                </div>
             </div>
         </HashRouter>
     );

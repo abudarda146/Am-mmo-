@@ -23,40 +23,48 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading })
       handleSubmit(e as unknown as React.FormEvent);
     }
   };
-  
-  const placeholderText = 'আপনার নিজের গল্পের থিম লিখুন... যেমন, "হারানো শহরের খোঁজে"';
-
 
   return (
-    // Removed 'sticky bottom-0' because in the flex-col layout of MainChatView, this input is naturally at the bottom.
-    // 'sticky' was causing issues with scrolling behavior on mobile.
-    // Added 'z-20' and specific background to ensure it sits cleanly above content.
-    <div className="bg-slate-800/90 backdrop-blur-md p-4 border-t border-slate-700 w-full z-20 shrink-0">
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-center space-x-4">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholderText}
-          className="flex-1 p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none text-lg placeholder:text-slate-400"
-          rows={1}
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="px-6 py-3 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
-        >
-          {isLoading ? (
-            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            'প্রেরণ'
-          )}
-        </button>
-      </form>
+    <div className="w-full shrink-0 px-4 pb-6 pt-4 bg-gradient-to-t from-black via-black/90 to-transparent z-20">
+      <div className="max-w-3xl mx-auto">
+        <form onSubmit={handleSubmit} className="relative flex items-end gap-2 ios-glass rounded-[2rem] p-1.5 shadow-2xl ring-1 ring-white/10 transition-all focus-within:ring-amber-500/50">
+            
+            <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="গল্পের মোড় ঘোরান..."
+                className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder:text-gray-500 resize-none py-3 px-5 max-h-32 min-h-[50px] custom-scrollbar text-base"
+                rows={1}
+                disabled={isLoading}
+                onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
+                }}
+            />
+            
+            <button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className={`
+                w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mb-1 mr-1 transition-all duration-300
+                ${isLoading || !input.trim() 
+                    ? 'bg-gray-800 text-gray-500 cursor-default' 
+                    : 'bg-amber-500 text-white hover:bg-amber-400 hover:scale-105 active:scale-95 shadow-lg shadow-amber-500/20'}
+                `}
+            >
+                {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
+                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+                )}
+            </button>
+        </form>
+        <p className="text-center text-[10px] text-gray-600 mt-3 font-medium tracking-wide">AI এর গল্প কাল্পনিক হতে পারে</p>
+      </div>
     </div>
   );
 };

@@ -14,7 +14,6 @@ interface ChatMessageProps {
   onPlayPause: (messageId: string, content: string) => void;
   onDownloadAudio: (messageId: string) => void;
   onRequestImage: (messageId: string) => void;
-  // Props kept for interface compatibility but unused
   onRequestVideo: (messageId: string) => void;
   onRequestSlideshow: (messageId: string) => void;
   volume: number;
@@ -40,189 +39,109 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     analyser,
     onRegenerateVoice
 }) => {
-  const [isCopied, setIsCopied] = useState(false);
   const isModel = message.role === Role.MODEL;
 
+  // iOS 17 Style Bubbles
   const bubbleClasses = isModel
-    ? 'bg-slate-800 text-slate-300 rounded-lg rounded-bl-none'
-    : 'bg-amber-600 text-white rounded-lg rounded-br-none';
+    ? 'bg-[#1c1c1e]/80 backdrop-blur-xl border border-white/5 text-gray-100 rounded-[1.5rem] rounded-tl-sm'
+    : 'bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-[1.5rem] rounded-tr-sm shadow-lg shadow-orange-500/20';
   
-  const avatarContainerClasses = isModel
-    ? 'bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 rounded-lg' // AI Storyteller gets a rounded square
-    : 'bg-slate-700 rounded-full'; // User gets a circle
-
-  const avatarPlayingClasses = isModel && audioState?.isPlaying ? 'animate-pulse-glow' : '';
-
-  const handlePlayPauseClick = () => {
-    onPlayPause(message.id, message.content);
-  }
-
-  const handleDownloadClick = () => {
-    onDownloadAudio(message.id);
-  }
-
-  const handleSeek = (time: number) => {
-    onSeek(message.id, time);
-  }
-
-  const handleSkip = (amount: number) => {
-    const newTime = Math.max(0, Math.min(audioState?.duration ?? 0, (audioState?.currentTime ?? 0) + amount));
-    onSeek(message.id, newTime);
-  }
-  
-  const handleCopyText = async () => {
-    if (!message.content) return;
-    try {
-        await navigator.clipboard.writeText(message.content);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-        console.error('Failed to copy text', err);
-    }
-  };
+  const handlePlayPauseClick = () => onPlayPause(message.id, message.content);
 
   const shouldShowActionButtons = isModel && message.content && !isStreaming && message.id !== 'initial-message' && isLastMessage && !message.imageUrl && !message.isGeneratingImage;
   const canGenerateMedia = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
 
   return (
-    <div className={`w-full max-w-4xl mx-auto flex items-end gap-3 my-4 ${isModel ? 'flex-row' : 'flex-row-reverse'} animate-message-pop`}>
-      <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-xl shadow-md ${avatarContainerClasses} ${avatarPlayingClasses} transition-all duration-300`}>
-        {isModel ? (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-amber-400">
-            <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.5a.75.75 0 00.5.707c1.728.348 3.483.504 5.25.504a9.735 9.735 0 003.25-.555.75.75 0 00.5-.707V5.24a.75.75 0 00-.5-.707z" />
-            <path d="M12.75 4.533c1.728-.348 3.483-.504 5.25-.504a9.735 9.735 0 013.25.555.75.75 0 01.5.707v14.5a.75.75 0 01-.5.707c-1.728.348-3.483.504-5.25.504a9.735 9.735 0 01-3.25-.555.75.75 0 01-.5-.707V5.24a.75.75 0 01.5-.707z" />
-          </svg>
-        ) : '👤'}
+    <div className={`w-full max-w-3xl mx-auto flex flex-col my-6 animate-slide-up ${isModel ? 'items-start' : 'items-end'}`}>
+      
+      {/* Avatar & Name (Optional, good for group chat feel) */}
+      <div className={`flex items-center gap-3 mb-2 px-2 ${isModel ? 'flex-row' : 'flex-row-reverse'}`}>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm ${isModel ? 'bg-gray-800 text-amber-500' : 'bg-gray-700 text-gray-300'}`}>
+            {isModel ? '🤖' : '👤'}
+        </div>
+        <span className="text-xs font-medium text-gray-500">{isModel ? 'গল্পকার' : 'আপনি'}</span>
       </div>
-      <div className={`p-4 md:p-5 shadow-md max-w-[80%] ${bubbleClasses} transition-all relative group/bubble`}>
-        
-        {/* Copy Button */}
-        {message.content && !isStreaming && (
-            <button
-                onClick={handleCopyText}
-                className={`absolute top-2 right-2 p-1.5 rounded-md transition-all duration-200 z-10 
-                    ${isModel 
-                        ? 'text-slate-500 hover:text-white hover:bg-slate-700/80 bg-slate-800/50' 
-                        : 'text-amber-200 hover:text-white hover:bg-amber-700/50'
-                    }
-                    ${isCopied ? 'opacity-100 text-green-400' : 'opacity-40 hover:opacity-100'}
-                `}
-                title="টেক্সট কপি করুন"
-            >
-                {isCopied ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                    </svg>
-                )}
-            </button>
-        )}
 
-        {(message.imageUrl || message.isGeneratingImage) && (
-            <div className="mb-2 rounded-lg overflow-hidden border border-slate-700">
-                {message.isGeneratingImage ? (
-                    <div className="relative w-full aspect-video bg-slate-700/50 flex flex-col items-center justify-center p-4 animate-shimmer">
-                        <span className="text-slate-300 text-sm font-medium z-10">গল্পের ছবি তৈরি হচ্ছে...</span>
-                    </div>
-                ) : message.imageUrl ? (
-                    <Link to={`/image/${message.id}`} className="block relative group" title="ছবিটি বড় করে দেখুন">
-                        <img src={message.imageUrl} alt="Generated content" className="max-w-full h-auto rounded-lg block group-hover:opacity-70 transition-opacity" />
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <span className="text-white font-bold flex items-center gap-2 text-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
-                                বড় করে দেখুন
-                            </span>
+      <div className={`relative px-5 py-4 max-w-[95%] md:max-w-[85%] group ${bubbleClasses}`}>
+            
+            {/* Media Section (Images) */}
+            {(message.imageUrl || message.isGeneratingImage) && (
+                <div className="mb-4 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+                    {message.isGeneratingImage ? (
+                        <div className="w-full aspect-video bg-gray-800/50 flex flex-col items-center justify-center animate-pulse">
+                            <LoadingSpinner />
                         </div>
-                    </Link>
-                ) : null}
-            </div>
-        )}
+                    ) : message.imageUrl ? (
+                        <Link to={`/image/${message.id}`} className="block relative group/image">
+                            <img src={message.imageUrl} alt="Generated" className="w-full h-auto block" />
+                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity">
+                                <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white">View</span>
+                            </div>
+                        </Link>
+                    ) : null}
+                </div>
+            )}
 
-        {isModel && isStreaming && !message.content ? (
-            <div className="flex items-center space-x-2">
-              <span className="text-slate-400 italic">গল্পকার লিখছেন...</span>
-              <LoadingSpinner />
-            </div>
-        ) : message.content ? (
-          <p className="text-lg leading-relaxed whitespace-pre-wrap pr-6">
-            {message.content}
-            {isStreaming && <span className="inline-block align-bottom w-1 h-5 bg-amber-400 ml-1 animate-blink"></span>}
-          </p>
-        ) : null}
+            {/* Text Content */}
+            {isModel && isStreaming && !message.content ? (
+                 <div className="flex gap-1 py-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                 </div>
+            ) : message.content ? (
+              <div className={`prose prose-invert max-w-none leading-relaxed text-[1.05rem] ${isModel ? 'font-serif' : 'font-sans'}`}>
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+              </div>
+            ) : null}
 
-        {canGenerateMedia && (
-            <div className="mt-4 border-t border-slate-700 pt-3 grid grid-cols-1 gap-3">
-                {!message.imageUrl && !message.isGeneratingImage && (
-                   <button onClick={() => onRequestImage(message.id)} className="px-3 py-2 bg-slate-700/80 text-amber-300 rounded-lg hover:bg-slate-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm w-full sm:w-auto">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
-                        গল্পের ছবি তৈরি করুন
+            {/* Audio Player */}
+            {isModel && message.content && !isStreaming && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                    <AudioControl 
+                        isLoading={audioState?.isLoading ?? false}
+                        isBuffering={audioState?.isBuffering ?? false}
+                        isPlaying={audioState?.isPlaying ?? false}
+                        hasError={audioState?.error}
+                        progress={audioState?.progress ?? 0}
+                        currentTime={audioState?.currentTime ?? 0}
+                        duration={audioState?.duration ?? 0}
+                        volume={volume}
+                        onPlayPauseClick={handlePlayPauseClick}
+                        onSeek={onSeek}
+                        onVolumeChange={onVolumeChange}
+                        onSkip={(amt) => onSeek(message.id, Math.max(0, (audioState?.currentTime || 0) + amt))}
+                        analyser={audioState?.isPlaying ? analyser : null}
+                        onRegenerateClick={() => onRegenerateVoice(message.id, message.content)}
+                        onDownloadClick={() => onDownloadAudio(message.id)}
+                    />
+                </div>
+            )}
+            
+             {/* Context Menu / Actions (Generate Image) */}
+             {canGenerateMedia && !message.imageUrl && !message.isGeneratingImage && (
+                <div className="absolute -bottom-8 left-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                   <button 
+                        onClick={() => onRequestImage(message.id)} 
+                        className="bg-gray-800/80 backdrop-blur text-xs px-3 py-1.5 rounded-full text-amber-400 hover:bg-gray-700 border border-gray-700"
+                    >
+                        🎨 ছবি আঁকুন
                     </button>
-                )}
-            </div>
-        )}
-
-        {isModel && message.content && !isStreaming && (
-            <div className="mt-3">
-                <AudioControl 
-                    isLoading={audioState?.isLoading ?? false}
-                    isBuffering={audioState?.isBuffering ?? false}
-                    isPlaying={audioState?.isPlaying ?? false}
-                    hasError={audioState?.error}
-                    progress={audioState?.progress ?? 0}
-                    currentTime={audioState?.currentTime ?? 0}
-                    duration={audioState?.duration ?? 0}
-                    volume={volume}
-                    onPlayPauseClick={handlePlayPauseClick}
-                    onDownloadClick={handleDownloadClick}
-                    onSeek={handleSeek}
-                    onVolumeChange={onVolumeChange}
-                    onSkip={handleSkip}
-                    analyser={audioState?.isPlaying ? analyser : null}
-                    onRegenerateClick={() => onRegenerateVoice(message.id, message.content)}
-                />
-            </div>
-        )}
-        {shouldShowActionButtons && (
-            <div className="mt-4 border-t border-slate-700 pt-3 flex items-center gap-3">
-                <button
-                    onClick={() => onSuggestionClick("হ্যাঁ, পরবর্তী অংশ বলুন")}
-                    className="flex-1 text-center px-4 py-2 bg-slate-700/80 text-amber-300 rounded-lg hover:bg-slate-700 transition-colors duration-200"
-                >
-                    গল্প চালিয়ে যান...
-                </button>
-                <button
-                    onClick={() => onSuggestionClick("আচ্ছা এখন গল্প শেষ কর")}
-                    className="flex-1 text-center px-4 py-2 bg-rose-800/60 text-rose-200 rounded-lg hover:bg-rose-700/80 transition-colors duration-200"
-                >
-                    গল্প শেষ করুন
-                </button>
-            </div>
-        )}
-        {message.sources && message.sources.length > 0 && (
-            <div className="mt-4 border-t border-slate-700 pt-3">
-                <h4 className="text-sm font-semibold text-slate-400 mb-2">উৎস:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                    {message.sources.map((source, index) => (
-                        <li key={index} className="text-sm truncate">
-                            <a 
-                                href={source.uri} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-amber-400 hover:text-amber-300 underline transition-colors"
-                                title={source.title}
-                            >
-                                {source.title || new URL(source.uri).hostname}
-                            </a>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        )}
+                </div>
+            )}
       </div>
+
+      {/* Suggestion Chips (Outside bubble) */}
+      {shouldShowActionButtons && (
+          <div className="flex flex-wrap gap-2 mt-2 px-2 animate-scale-in justify-end">
+              <button
+                  onClick={() => onSuggestionClick("হ্যাঁ, পরবর্তী অংশ বলুন")}
+                  className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-amber-400 rounded-full text-sm font-medium transition-colors border border-white/5"
+              >
+                  চালিয়ে যান →
+              </button>
+          </div>
+      )}
     </div>
   );
 };

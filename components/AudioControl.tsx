@@ -33,232 +33,128 @@ const AudioControl: React.FC<AudioControlProps> = ({
   hasError = false,
   currentTime,
   duration,
-  volume,
   onPlayPauseClick,
   onSeek,
-  onVolumeChange,
   onSkip,
-  onDownloadClick,
-  analyser,
-  onRegenerateClick
+  onRegenerateClick,
+  analyser
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
-    const capsYPositionRef = useRef<number[]>([]); 
 
+    // Visualizer Logic
     useEffect(() => {
         if (!canvasRef.current || !analyser || !isPlaying) return;
-
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d', { alpha: false });
+        const ctx = canvas.getContext('2d');
         if (!ctx) return;
-
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
 
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         
-        const barCount = 40; 
-        const barWidth = (rect.width / barCount) - 2; 
-        const capHeight = 2;
-        const capFallSpeed = 2; 
-
-        if (capsYPositionRef.current.length !== barCount) {
-            capsYPositionRef.current = new Array(barCount).fill(rect.height);
-        }
-
         const draw = () => {
             animationRef.current = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            ctx.clearRect(0, 0, rect.width, rect.height);
-
-            // Updated Gradient: Amber to Cyan to match theme
-            const gradient = ctx.createLinearGradient(0, 0, rect.width, 0);
-            gradient.addColorStop(0, '#fbbf24');    // Amber 400
-            gradient.addColorStop(0.5, '#f59e0b');  // Amber 500
-            gradient.addColorStop(1, '#06b6d4');    // Cyan 500
-
-            ctx.fillStyle = gradient;
-
+            const barWidth = 3;
+            const gap = 2;
+            const barCount = Math.floor(canvas.width / (barWidth + gap));
             const step = Math.floor(bufferLength / barCount);
 
+            ctx.fillStyle = '#fbbf24'; // Amber color
+            
             for (let i = 0; i < barCount; i++) {
                 const value = dataArray[i * step];
-                const height = (value / 255) * rect.height;
+                const percent = value / 255;
+                const height = percent * canvas.height;
+                // Center the bars vertically
+                const y = (canvas.height - height) / 2;
                 
-                const x = i * (barWidth + 2);
-                const y = rect.height - height;
-
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x, y, barWidth, height);
-
-                // Draw Cap
-                if (y < capsYPositionRef.current[i]) {
-                    capsYPositionRef.current[i] = y;
-                } else {
-                    capsYPositionRef.current[i] = Math.min(rect.height, capsYPositionRef.current[i] + capFallSpeed);
-                }
-
-                if (capsYPositionRef.current[i] < rect.height) {
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(x, capsYPositionRef.current[i] - capHeight - 1, barWidth, capHeight);
-                }
+                // Draw rounded bars
+                ctx.beginPath();
+                ctx.roundRect(i * (barWidth + gap), y, barWidth, height, 5);
+                ctx.fill();
             }
         };
-
         draw();
-
-        return () => {
-            if (animationRef.current) {
-                cancelAnimationFrame(animationRef.current);
-            }
-        };
+        return () => cancelAnimationFrame(animationRef.current);
     }, [analyser, isPlaying]);
+
 
     if (hasError) {
         return (
-            <div className="flex items-center gap-2 text-red-400 animate-fade-in p-3 bg-slate-800/50 rounded-lg border border-red-500/30">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                 </svg>
-                 <span className="text-sm font-medium">অডিও লোড করা যায়নি</span>
-                 <button 
-                    onClick={onPlayPauseClick}
-                    className="ml-auto px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition-colors"
-                 >
-                    পুনরায় চেষ্টা করুন
-                 </button>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm flex items-center gap-2">
+                ⚠️ অডিও লোড করা যায়নি
             </div>
-        )
+        );
     }
 
-    const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onSeek(parseFloat(e.target.value));
-    };
-
-    const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-
     return (
-        <div className="flex flex-col w-full gap-3 bg-slate-800/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 shadow-lg animate-fade-in mt-2 overflow-hidden relative group">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 relative overflow-hidden group">
             
-            {/* Ambient Glow */}
-            {isPlaying && (
-                <div className="absolute inset-x-0 bottom-0 h-full w-full bg-gradient-to-t from-amber-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
-            )}
-            
-            {/* Visualizer Background */}
-            {isPlaying && analyser && (
-                <div className="absolute inset-0 opacity-100 pointer-events-none z-0">
-                     <canvas 
-                        ref={canvasRef} 
-                        className="w-full h-full opacity-90 mix-blend-screen"
-                    />
-                </div>
-            )}
+            {/* Play/Pause Button */}
+            <button 
+                onClick={onPlayPauseClick}
+                disabled={isLoading || isBuffering}
+                className="w-12 h-12 flex-shrink-0 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg"
+            >
+                {isLoading || isBuffering ? (
+                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                ) : isPlaying ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                )}
+            </button>
 
-            <div className="relative z-10 flex flex-col gap-3">
-                {/* Top Row Controls */}
-                <div className="flex items-center justify-between w-full gap-4">
-                    <div className="flex items-center gap-4">
-                         {/* Play/Pause Button */}
-                        <button
-                            onClick={onPlayPauseClick}
-                            className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-full transition-all shadow-lg shadow-amber-500/20 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait disabled:transform-none"
-                            disabled={isLoading || isBuffering}
-                            title={isPlaying ? 'বিরতি' : 'শুনুন'}
-                        >
-                            {isLoading ? (
-                                <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : isBuffering ? (
-                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            ) : isPlaying ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                </svg>
-                            )}
-                        </button>
-
-                        {/* Skip Controls */}
-                        <div className="flex items-center bg-slate-900/60 rounded-full p-1 border border-slate-700/50 backdrop-blur-md">
-                             <button onClick={() => onSkip(-10)} title="১০ সেকেন্ড পেছনে" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/>
-                                </svg>
-                             </button>
-                             <div className="w-px h-4 bg-slate-700 mx-1"></div>
-                             <button onClick={() => onSkip(10)} title="১০ সেকেন্ড সামনে" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors">
-                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/>
-                                 </svg>
-                             </button>
+            {/* Right Side Info */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+                
+                {/* Visualizer or Static Waveform */}
+                <div className="h-8 w-full flex items-center">
+                    {isPlaying ? (
+                        <canvas ref={canvasRef} width={200} height={32} className="w-full h-full opacity-80" />
+                    ) : (
+                        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                             <div className="h-full bg-gray-500/50" style={{ width: `${(currentTime/duration)*100}%` }}></div>
                         </div>
-                    </div>
-                    
-                    {/* Right Side Actions */}
-                    <div className="flex items-center gap-2">
-                         {/* Change Voice Button */}
-                        {onRegenerateClick && (
-                            <button
-                                onClick={onRegenerateClick}
-                                title="ভয়েস পরিবর্তন করুন"
-                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 backdrop-blur-sm"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                                </svg>
-                            </button>
-                        )}
-
-                        {onDownloadClick && (
-                            <button 
-                                onClick={onDownloadClick} 
-                                title="অডিও ডাউনলোড করুন" 
-                                disabled={!duration || duration === 0}
-                                className="p-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-amber-300 rounded-full transition-all border border-slate-600 hover:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm hidden sm:block"
-                            >
-                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                 </svg>
-                            </button>
-                        )}
-                    </div>
+                    )}
                 </div>
 
-                {/* Bottom Row: Progress Bar */}
-                <div className="flex items-center gap-3 mt-1 px-1">
-                     <span className="text-xs text-slate-400 font-mono font-medium w-10 text-right">{formatTime(currentTime)}</span>
-                     <div className="relative flex-1 h-5 flex items-center group/slider">
-                        <input
-                            type="range"
-                            min="0"
-                            max={duration || 100}
-                            step="0.1"
-                            value={currentTime}
-                            onChange={handleSeekChange}
-                            className="audio-progress-slider w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer z-10 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                            style={{
-                                background: `linear-gradient(to right, #f59e0b ${progressPercent}%, #334155 ${progressPercent}%)`
-                            }}
-                            aria-label="Seek"
-                        />
-                     </div>
-                     <span className="text-xs text-slate-400 font-mono font-medium w-10">{formatTime(duration)}</span>
+                {/* Time and Scrubber */}
+                <div className="flex items-center justify-between text-[10px] text-gray-400 font-mono">
+                    <span>{formatTime(currentTime)}</span>
+                    <input
+                        type="range"
+                        min="0"
+                        max={duration || 100}
+                        value={currentTime}
+                        onChange={(e) => onSeek(parseFloat(e.target.value))}
+                        className="mx-2 flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span>{formatTime(duration)}</span>
                 </div>
             </div>
+
+             {/* Actions */}
+             <div className="flex items-center gap-2">
+                 <button onClick={() => onSkip(-10)} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/></svg>
+                 </button>
+                 <button onClick={() => onSkip(10)} className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
+                 </button>
+                 {onRegenerateClick && (
+                    <button onClick={onRegenerateClick} className="text-amber-400 hover:text-amber-300 p-1.5 rounded-full hover:bg-amber-500/10">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                 )}
+             </div>
         </div>
     );
 };
