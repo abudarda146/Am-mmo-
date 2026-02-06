@@ -41,7 +41,6 @@ const CONTINUATION_SUGGESTIONS = [
     "গল্পটি এখানে শেষ করুন",
 ];
 
-// Helper to generate IDs safely
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
 const App: React.FC = () => {
@@ -51,7 +50,7 @@ const App: React.FC = () => {
     // Sessions and State
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default for cleaner look
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -63,7 +62,6 @@ const App: React.FC = () => {
     const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
     const [volume, setVolume] = useState(1);
     
-    // Voice Modal State
     const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
     const [pendingAudioMessage, setPendingAudioMessage] = useState<{id: string, content: string, action: 'play' | 'download'} | null>(null);
     
@@ -98,7 +96,6 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
-    // Load messages when session changes
     useEffect(() => {
         const loadSessionMessages = async () => {
             if (currentSessionId && user) {
@@ -152,11 +149,12 @@ const App: React.FC = () => {
         const state = audioStates[playingId];
         const context = audioContextRef.current;
         
+        // Accurate Time Calculation
         const elapsedTime = context.currentTime - playbackStartTimeRef.current;
         const newCurrentTime = pausedAtRef.current + elapsedTime;
 
         if (newCurrentTime >= state.duration) {
-            stopCurrentAudio();
+            stopCurrentAudio(false); 
         } else {
             setAudioStates(prev => ({
                 ...prev,
@@ -176,9 +174,10 @@ const App: React.FC = () => {
             context.resume();
         }
         
+        // Stop existing before starting new
         if (currentSourceNodeRef.current) {
             currentSourceNodeRef.current.onended = null;
-            currentSourceNodeRef.current.stop();
+            try { currentSourceNodeRef.current.stop(); } catch(e){}
         }
 
         const source = context.createBufferSource();
@@ -186,8 +185,9 @@ const App: React.FC = () => {
         source.connect(analyserNodeRef.current!);
         analyserNodeRef.current!.connect(gainNodeRef.current!);
         
+        // Store Timing
         playbackStartTimeRef.current = context.currentTime;
-        pausedAtRef.current = offset;
+        pausedAtRef.current = offset; // Store where we started from
         
         source.start(0, offset);
         
@@ -202,15 +202,22 @@ const App: React.FC = () => {
                 isLoading: false,
                 isBuffering: false,
                 duration: buffer.duration,
+                currentTime: offset // Update UI immediately
             }
         }));
         
         source.onended = () => {
+             // Only stop if natural end, not if seek/pause stopped it
              if (currentlyPlayingIdRef.current === messageId) {
-                stopCurrentAudio(false);
+                 const contextTime = audioContextRef.current?.currentTime || 0;
+                 const elapsed = contextTime - playbackStartTimeRef.current;
+                 if (pausedAtRef.current + elapsed >= buffer.duration - 0.1) {
+                    stopCurrentAudio(false);
+                 }
              }
         };
 
+        cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = requestAnimationFrame(updateProgress);
 
     }, [updateProgress]);
@@ -223,26 +230,30 @@ const App: React.FC = () => {
         const playingId = currentlyPlayingIdRef.current;
         const context = audioContextRef.current;
         
-        pausedAtRef.current += context.currentTime - playbackStartTimeRef.current;
+        // Calculate where we paused
+        const elapsed = context.currentTime - playbackStartTimeRef.current;
+        pausedAtRef.current = pausedAtRef.current + elapsed;
         
         currentSourceNodeRef.current.onended = null;
-        currentSourceNodeRef.current.stop();
+        try { currentSourceNodeRef.current.stop(); } catch(e) {}
         currentSourceNodeRef.current = null;
         
         setAudioStates(prev => ({
             ...prev,
-            [playingId]: { ...prev[playingId], isPlaying: false }
+            [playingId]: { 
+                ...prev[playingId], 
+                isPlaying: false,
+                currentTime: pausedAtRef.current 
+            }
         }));
 
     }, []);
 
-    const stopCurrentAudio = useCallback((stopSource = true) => {
+    const stopCurrentAudio = useCallback((resetTime = true) => {
         cancelAnimationFrame(animationFrameRef.current);
-        if (stopSource && currentSourceNodeRef.current) {
+        if (currentSourceNodeRef.current) {
             currentSourceNodeRef.current.onended = null;
-            try {
-                currentSourceNodeRef.current.stop();
-            } catch (e) {}
+            try { currentSourceNodeRef.current.stop(); } catch (e) {}
         }
         
         if (currentlyPlayingIdRef.current) {
@@ -252,15 +263,15 @@ const App: React.FC = () => {
                 [finishedId]: {
                      ...prev[finishedId], 
                      isPlaying: false, 
-                     currentTime: prev[finishedId]?.duration ?? 0,
-                     progress: 100
+                     currentTime: resetTime ? 0 : prev[finishedId]?.duration,
+                     progress: resetTime ? 0 : 100
                     }
             }));
         }
 
         currentlyPlayingIdRef.current = null;
         currentSourceNodeRef.current = null;
-        pausedAtRef.current = 0;
+        if (resetTime) pausedAtRef.current = 0;
 
     }, []);
 
@@ -323,12 +334,10 @@ const App: React.FC = () => {
 
         try {
             const base64Audio = await generateStoryAudio(content, voiceName);
-            
             const audioData = decode(base64Audio);
             const context = getAudioContext();
             const buffer = await decodeAudioData(audioData, context, 24000, 1);
             
-            // Update state so it can also be played if user wants
             setAudioStates(prev => ({ 
                 ...prev, 
                 [messageId]: { 
@@ -339,7 +348,6 @@ const App: React.FC = () => {
                 } 
             }));
 
-            // Direct Download
             const wavBlob = audioBufferToWav(buffer);
             const url = URL.createObjectURL(wavBlob);
             const a = document.createElement('a');
@@ -352,7 +360,6 @@ const App: React.FC = () => {
             document.body.removeChild(a);
 
         } catch (err) {
-            console.error("Download generation failed:", err);
             setError("অডিও ডাউনলোড করতে সমস্যা হয়েছে।");
             setAudioStates(prev => ({ 
                 ...prev, 
@@ -375,6 +382,7 @@ const App: React.FC = () => {
 
         let buffer = currentState?.audioBuffer;
         if (buffer && !currentState.isPlaying) {
+            // Resume from paused position
             playAudio(messageId, buffer, pausedAtRef.current);
             return;
         }
@@ -404,9 +412,7 @@ const App: React.FC = () => {
         setShowVoiceModal(true);
     };
 
-    // FIXED DOWNLOAD LOGIC
     const handleRequestDownload = (messageId: string, content: string) => {
-        // If audio is already generated and available in state, download it directly
         if (audioStates[messageId]?.audioBuffer) {
              const buffer = audioStates[messageId].audioBuffer;
              if(buffer) {
@@ -415,7 +421,6 @@ const App: React.FC = () => {
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                // Use default voice name or generic if not tracked per message, but 'download' is enough
                 a.download = `story_${messageId.substring(0, 6)}.wav`;
                 document.body.appendChild(a);
                 a.click();
@@ -424,8 +429,6 @@ const App: React.FC = () => {
                 return;
              }
         }
-
-        // Only open modal if audio buffer does NOT exist
         stopCurrentAudio();
         setPendingAudioMessage({ id: messageId, content, action: 'download' });
         setShowVoiceModal(true);
@@ -438,21 +441,26 @@ const App: React.FC = () => {
         }
     };
 
+    // FIXED SEEK LOGIC
     const handleSeek = (messageId: string, newTime: number) => {
         const state = audioStates[messageId];
         if (!state?.audioBuffer) return;
-        const wasPlaying = state.isPlaying;
-        if(wasPlaying) pauseAudio();
-        pausedAtRef.current = newTime;
-        setAudioStates(prev => ({
-            ...prev,
-            [messageId]: {
-                ...prev[messageId],
-                currentTime: newTime,
-                progress: (newTime / state.duration) * 100,
-            }
-        }));
-        if (wasPlaying) playAudio(messageId, state.audioBuffer, newTime);
+
+        // If currently playing this specific message, restart it at new offset
+        if (currentlyPlayingIdRef.current === messageId && state.isPlaying) {
+            playAudio(messageId, state.audioBuffer, newTime);
+        } else {
+            // Just update UI state if paused
+            pausedAtRef.current = newTime;
+            setAudioStates(prev => ({
+                ...prev,
+                [messageId]: {
+                    ...prev[messageId],
+                    currentTime: newTime,
+                    progress: (newTime / state.duration) * 100,
+                }
+            }));
+        }
     };
 
     const handleSendMessage = async (userInput: string) => {
@@ -582,13 +590,11 @@ const App: React.FC = () => {
         }
     };
 
-    // FIXED: Suggestions now show even if there is an image
     const getSuggestions = () => {
         if (isLoading || isGeneratingPrompt) return [];
         const lastMessage = messages[messages.length - 1];
         if (!lastMessage) return [];
         if (lastMessage.id === 'initial-message') return STORY_SUGGESTIONS;
-        // Logic Updated: Removed the check for !lastMessage.imageUrl so suggestions persist
         if (lastMessage.role === Role.MODEL && messages.length > 1) {
             return CONTINUATION_SUGGESTIONS;
         }
@@ -611,7 +617,6 @@ const App: React.FC = () => {
     return (
         <HashRouter>
             <div className="fixed inset-0 h-full w-full overflow-hidden flex flex-col font-sans">
-                {/* Aurora Effects (Simplified) */}
                 <div className="fixed inset-0 pointer-events-none z-0">
                      <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[60%] bg-purple-900/10 rounded-full blur-[100px] animate-pulse-slow"></div>
                      <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[60%] bg-blue-900/10 rounded-full blur-[100px] animate-pulse-slow" style={{animationDelay: '2s'}}></div>
