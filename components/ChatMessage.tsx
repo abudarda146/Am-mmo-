@@ -40,6 +40,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     onRegenerateVoice
 }) => {
   const isModel = message.role === Role.MODEL;
+  const [isCopied, setIsCopied] = useState(false);
 
   // New "Cosmic Card" Styles
   const containerClasses = isModel 
@@ -51,6 +52,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     : 'cosmic-card-user text-white rounded-tl-[2rem] rounded-bl-[2rem] rounded-br-[2rem] max-w-[85%]';
   
   const handlePlayPauseClick = () => onPlayPause(message.id, message.content);
+
+  const handleCopy = async () => {
+    try {
+        await navigator.clipboard.writeText(message.content);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+  };
 
   // Logic Updated: Removed the check for !message.imageUrl so buttons persist
   const shouldShowActionButtons = isModel && 
@@ -73,6 +84,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
       <div className={`relative px-8 py-8 group transition-all duration-500 hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] ${bubbleClasses}`}>
             
+            {/* Copy Button (Top Right) */}
+            {message.content && !isStreaming && (
+                <button 
+                    onClick={handleCopy}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                    title="কপি করুন"
+                >
+                    {isCopied ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    )}
+                </button>
+            )}
+
             {/* Media Section (Images) */}
             {(message.imageUrl || message.isGeneratingImage) && (
                 <div className="mb-6 rounded-lg overflow-hidden border border-white/10 w-full relative">
