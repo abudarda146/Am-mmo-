@@ -63,14 +63,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     }
   };
 
-  // Logic Updated: Removed the check for !message.imageUrl so buttons persist
   const shouldShowActionButtons = isModel && 
                                   message.content && 
                                   !isStreaming && 
                                   message.id !== 'initial-message' && 
                                   isLastMessage;
 
-  const canGenerateMedia = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
+  const showToolbar = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
 
   return (
     <div className={`w-full max-w-4xl mx-auto flex flex-col my-8 animate-slide-up px-2 ${containerClasses}`}>
@@ -163,10 +162,35 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                 </div>
             )}
             
-            {/* Toolbar - ALWAYS VISIBLE NOW */}
-            {canGenerateMedia && !message.imageUrl && !message.isGeneratingImage && (
-                <div className="mt-6 flex justify-end">
+            {/* Toolbar */}
+            {showToolbar && (
+                <div className="mt-6 flex flex-wrap justify-end gap-3">
+                   
+                   {/* Share Button */}
                    <button 
+                        onClick={handleCopy}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-cosmic-glass border border-white/10 hover:border-cosmic-gold/50 hover:bg-white/5 transition-all group/btn"
+                        title="গল্পটি শেয়ার করুন"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center text-white shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover/btn:scale-110 transition-transform">
+                             {isCopied ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                             ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                                    <polyline points="16 6 12 2 8 6"></polyline>
+                                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                                </svg>
+                             )}
+                        </div>
+                        <span className="text-xs font-bold tracking-widest text-gray-300 group-hover/btn:text-white">{isCopied ? 'COPIED!' : 'SHARE STORY'}</span>
+                    </button>
+
+                   {/* Generate Visual Button */}
+                   {!message.imageUrl && !message.isGeneratingImage && (
+                    <button 
                         onClick={() => onRequestImage(message.id)} 
                         className="flex items-center gap-2 px-4 py-2 rounded-full bg-cosmic-glass border border-white/10 hover:border-cosmic-accent/50 hover:bg-white/5 transition-all group/btn"
                         title="চিত্রিত করুন"
@@ -176,6 +200,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                         </div>
                         <span className="text-xs font-bold tracking-widest text-gray-300 group-hover/btn:text-white">GENERATE VISUAL</span>
                     </button>
+                   )}
                 </div>
             )}
       </div>

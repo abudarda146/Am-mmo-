@@ -1,14 +1,16 @@
 
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import StoryLengthSelector from './StoryLengthSelector';
+import StoryThemeSelector from './StoryThemeSelector';
 import VoiceSelector from './VoiceSelector';
-import { StoryLength } from '../types';
+import { StoryLength, StoryTheme } from '../types';
 
 interface SettingsViewProps {
   storyLength: StoryLength;
   onLengthChange: (length: StoryLength) => void;
+  storyTheme: StoryTheme;
+  onThemeChange: (theme: StoryTheme) => void;
   selectedVoice: string;
   onVoiceChange: (voice: string) => void;
   isDisabled: boolean;
@@ -18,6 +20,8 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
   const {
     storyLength,
     onLengthChange,
+    storyTheme,
+    onThemeChange,
     selectedVoice,
     onVoiceChange,
     isDisabled,
@@ -25,9 +29,14 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 animate-fade-in">
-        <div className="w-full max-w-lg bg-slate-800/50 backdrop-blur-sm p-8 rounded-xl border border-slate-700 shadow-lg">
+        <div className="w-full max-w-lg bg-slate-800/50 backdrop-blur-sm p-8 rounded-xl border border-slate-700 shadow-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
             <h2 className="text-3xl font-bold text-amber-400 mb-6 text-center">সেটিংস</h2>
             <div className="space-y-8">
+                <StoryThemeSelector
+                    currentTheme={storyTheme}
+                    onThemeChange={onThemeChange}
+                    isDisabled={isDisabled}
+                />
                 <StoryLengthSelector
                     currentLength={storyLength}
                     onLengthChange={onLengthChange}
@@ -39,7 +48,7 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                     isDisabled={isDisabled}
                 />
             </div>
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center pb-4">
                  <Link
                     to="/"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-200"

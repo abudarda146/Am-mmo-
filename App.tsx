@@ -12,7 +12,7 @@ import AuthView from './components/AuthView';
 import Sidebar from './components/Sidebar';
 import VoiceSelectionModal from './components/VoiceSelectionModal';
 
-import { Message, Role, Source, StoryLength, AudioState, ChatSession } from './types';
+import { Message, Role, Source, StoryLength, StoryTheme, AudioState, ChatSession } from './types';
 import { initChat, generateStoryAudio, generateImageForStory, generateRandomStoryPrompt } from './services/geminiService';
 import { 
     onAuthChange, 
@@ -59,6 +59,7 @@ const App: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [audioStates, setAudioStates] = useState<Record<string, AudioState>>({});
     const [storyLength, setStoryLength] = useState<StoryLength>('long');
+    const [storyTheme, setStoryTheme] = useState<StoryTheme>('general');
     const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
     const [volume, setVolume] = useState(1);
     
@@ -107,10 +108,10 @@ const App: React.FC = () => {
                     const sessionMessages = await getChatMessages(currentSessionId);
                     if (sessionMessages.length > 0) {
                         setMessages(sessionMessages);
-                        chat.current = initChat(storyLength, sessionMessages);
+                        chat.current = initChat(storyLength, storyTheme, sessionMessages);
                     } else {
                         setMessages([INITIAL_MESSAGE]);
-                        chat.current = initChat(storyLength, []);
+                        chat.current = initChat(storyLength, storyTheme, []);
                     }
                 } catch (e) {
                     setError("স্মৃতি লোড করতে সমস্যা হয়েছে।");
@@ -124,7 +125,7 @@ const App: React.FC = () => {
             }
         };
         loadSessionMessages();
-    }, [currentSessionId, user, storyLength]);
+    }, [currentSessionId, user, storyLength, storyTheme]);
 
     const getAudioContext = () => {
         if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
@@ -270,9 +271,9 @@ const App: React.FC = () => {
         setMessages([INITIAL_MESSAGE]);
         setAudioStates({});
         setError(null);
-        chat.current = initChat(storyLength, []);
+        chat.current = initChat(storyLength, storyTheme, []);
         if (window.innerWidth < 1024) setIsSidebarOpen(false);
-    }, [stopCurrentAudio, storyLength, user]);
+    }, [stopCurrentAudio, storyLength, storyTheme, user]);
 
     useEffect(() => {
         return () => {
@@ -283,6 +284,10 @@ const App: React.FC = () => {
 
     const handleLengthChange = (length: StoryLength) => {
         setStoryLength(length);
+    };
+
+    const handleThemeChange = (theme: StoryTheme) => {
+        setStoryTheme(theme);
     };
     
     const handleVoiceChange = (voice: string) => {
@@ -466,11 +471,11 @@ const App: React.FC = () => {
             await saveChatSession(user.uid, activeSessionId, title);
             const updatedSessions = await getChatSessions(user.uid);
             setSessions(updatedSessions);
-            chat.current = initChat(storyLength, []);
+            chat.current = initChat(storyLength, storyTheme, []);
         } else {
             await updateChatSessionTime(activeSessionId);
             if (!chat.current) {
-                 chat.current = initChat(storyLength, messages);
+                 chat.current = initChat(storyLength, storyTheme, messages);
             }
         }
         
@@ -480,7 +485,7 @@ const App: React.FC = () => {
         await saveMessage(activeSessionId, userMessage);
 
         try {
-            if (!chat.current) chat.current = initChat(storyLength, messages);
+            if (!chat.current) chat.current = initChat(storyLength, storyTheme, messages);
             
             const result = await chat.current.sendMessageStream({ message: userInput });
             let currentContent = '';
@@ -668,6 +673,8 @@ const App: React.FC = () => {
                                             <SettingsView
                                                 storyLength={storyLength}
                                                 onLengthChange={handleLengthChange}
+                                                storyTheme={storyTheme}
+                                                onThemeChange={handleThemeChange}
                                                 selectedVoice={selectedVoice}
                                                 onVoiceChange={handleVoiceChange}
                                                 isDisabled={combinedIsLoading}

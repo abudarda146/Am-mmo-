@@ -27,6 +27,8 @@ export interface ChatSession {
 
 export type StoryLength = 'short' | 'medium' | 'long';
 
+export type StoryTheme = 'general' | 'fantasy' | 'scifi' | 'mystery' | 'romance' | 'horror';
+
 export interface AudioState {
   isLoading: boolean;
   isBuffering: boolean;
