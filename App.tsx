@@ -577,12 +577,14 @@ const App: React.FC = () => {
         }
     };
 
+    // FIXED: Suggestions now show even if there is an image
     const getSuggestions = () => {
         if (isLoading || isGeneratingPrompt) return [];
         const lastMessage = messages[messages.length - 1];
         if (!lastMessage) return [];
         if (lastMessage.id === 'initial-message') return STORY_SUGGESTIONS;
-        if (lastMessage.role === Role.MODEL && messages.length > 1 && !lastMessage.imageUrl) {
+        // Logic Updated: Removed the check for !lastMessage.imageUrl so suggestions persist
+        if (lastMessage.role === Role.MODEL && messages.length > 1) {
             return CONTINUATION_SUGGESTIONS;
         }
         return [];

@@ -52,7 +52,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   
   const handlePlayPauseClick = () => onPlayPause(message.id, message.content);
 
-  const shouldShowActionButtons = isModel && message.content && !isStreaming && message.id !== 'initial-message' && isLastMessage && !message.imageUrl && !message.isGeneratingImage;
+  // Logic Updated: Removed the check for !message.imageUrl so buttons persist
+  const shouldShowActionButtons = isModel && 
+                                  message.content && 
+                                  !isStreaming && 
+                                  message.id !== 'initial-message' && 
+                                  isLastMessage;
+
   const canGenerateMedia = isModel && message.id !== 'initial-message' && message.content && !isStreaming;
 
   return (
@@ -151,6 +157,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                   className="px-6 py-2 bg-transparent border border-cosmic-accent/30 text-cosmic-accent hover:bg-cosmic-accent/10 hover:border-cosmic-accent rounded-full text-xs font-bold tracking-widest transition-all uppercase"
               >
                   CONTINUE STORY →
+              </button>
+              <button
+                  onClick={() => onSuggestionClick("গল্পটি এখানে শেষ করুন")}
+                  className="px-6 py-2 bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500 rounded-full text-xs font-bold tracking-widest transition-all uppercase"
+              >
+                  FINISH STORY
               </button>
           </div>
       )}
